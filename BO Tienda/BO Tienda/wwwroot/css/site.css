@@ -1,0 +1,1126 @@
+/* =====================================================================
+   wwwroot/css/site.css — Hoja única de la app
+   ---------------------------------------------------------------------
+   Sigue «guia-de-estilos.md» (SOLARIS · GAIA). Como en CDM (sección 9),
+   todo va en una sola hoja con los nombres de variable de las pantallas
+   de voz (--acento, --texto, --superficie, --borde, --thead…).
+
+   Reglas de oro: todo color sale de una variable; letra de Windows sin
+   cargar nada; sin degradados de colores ni sombras de colores; la
+   elevación va con bordes; probar siempre claro y oscuro, y a 375 px.
+
+   Índice
+     1. Variables (tokens)        8. Tablero y panel de filtros
+     2. Marcas                    9. Tira de indicadores
+     3. Tema oscuro              10. Tarjetas y gráficas
+     4. Base                     11. Tablas
+     5. Cabecera                 12. Movimiento
+     6. Botones y controles      13. Móvil (760 px)
+     7. Avisos y portada         14. Impresión
+   ===================================================================== */
+
+
+/* =====================================================================
+   1. Variables (tokens)
+   ===================================================================== */
+:root {
+    color-scheme: light;
+
+    /* Letra: la de Windows 11 (en Windows 10 cae a Segoe UI). No se carga nada */
+    --font-ui: "Segoe UI Variable Text", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    --font-titulo: "Segoe UI Variable Display", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    --font-logo: "Century Gothic", "Arial Rounded MT Bold", Arial, sans-serif;
+
+    /* Forma y distribución */
+    --radio: 16px;
+    --radio-sm: 8px;
+    --alto-cabecera: 72px;
+    --ancho-panel: 268px;
+    --hueco: 20px;
+
+    /* Movimiento: sin rebote */
+    --curva: cubic-bezier(.22, .61, .36, 1);
+    --t-clic: 160ms;
+    --t-hover: 220ms;
+    --t-aparece: 440ms;
+    --t-cuenta: 780ms;
+    --t-escalon: 45ms;
+
+    /* Base neutra (claro) */
+    --fondo: #f5f6f9;
+    --superficie: #ffffff;
+    --borde: #e4e7ee;
+    --texto: #1b2236;
+    --texto-suave: #5f6780;
+    --texto-tenue: #9aa1b3;
+    --pista: #eef0f5;            /* fondo de las barras y de la fila al pasar el ratón */
+
+    /* Fijos en todas las marcas (guía 2.2) */
+    --serie-1: #f16e00;          /* naranja */
+    --serie-2: #4170d8;          /* azul */
+    --serie-3: #228722;          /* verde */
+    --serie-4: #cd3c14;          /* rojo */
+    --serie-5: #a885d8;          /* lila */
+    --bueno: #228722;
+    --malo: #cd3c14;
+    --mapa-verde: #c6efce;
+    --mapa-ambar: #ffeb9c;
+    --mapa-rojo: #ffc7ce;
+    --mapa-tinta: #141414;
+    --atencion: #c99400;
+    --atencion-texto: #8a6500;
+    --carga: #f16e00;            /* barra de carga de arriba */
+
+    /* Logotipos */
+    --logo-fuerte: #1f2a44;
+    --logo-suave: #6b74b8;
+    --logo-yoigo: #7b38c9;
+    --logo-orange: #f16e00;
+
+    /* Acento: por defecto el de portada y menús (marino) */
+    --acento: #1f2a44;
+    --acento-osc: #2c3a5c;
+    --acento-texto: #ffffff;
+    --thead: #eef0f5;
+    --thead-texto: #1b2236;
+
+    /* Gráficas: la serie principal va con el acento; la secundaria, azul */
+    --serie-principal: var(--acento);
+    --serie-secundaria: var(--serie-2);
+    --serie-secundaria-texto: #ffffff;   /* texto sobre el azul (pastillas) */
+
+    /* Cabecera (cromo) */
+    --cab-fondo: var(--superficie);
+    --cab-texto: var(--texto);
+    --cab-borde: var(--acento);  /* la línea de 3 px del color de marca */
+
+    /* Tarjeta de indicador: borde fino, filo de 3 px arriba y realce radial */
+    --tile-borde: var(--borde);
+    --tile-filo: color-mix(in srgb, var(--acento) 35%, var(--borde));
+    --tile-realce: color-mix(in srgb, var(--acento) 6%, transparent);
+}
+
+
+/* =====================================================================
+   2. Marcas — <html data-marca="…"> cambia el acento de toda la página.
+   El texto encima del acento sale siempre de --acento-texto.
+   ===================================================================== */
+:root[data-marca="yoigo"] {
+    --acento: #7b38c9;
+    --acento-osc: #5f27a3;
+    --acento-texto: #ffffff;
+    --thead: #efe6fa;
+    --thead-texto: #4a1f7d;
+    --serie-5: #c99400;          /* la serie «morada» pasa al ámbar: no se confunde con el acento */
+}
+
+:root[data-marca="orange"] {
+    --acento: #f16e00;
+    --acento-osc: #cc5e00;
+    --acento-texto: #141414;
+    --thead: #ffe3cc;
+    --thead-texto: #7a3a00;
+}
+
+
+/* =====================================================================
+   3. Tema oscuro — tema.js pone data-tema="oscuro" en <html>.
+   Gris muy oscuro (no negro puro); la elevación sigue yendo con bordes.
+   ===================================================================== */
+:root[data-tema="oscuro"] {
+    color-scheme: dark;
+    --fondo: #12121a;
+    --superficie: #1c1c26;
+    --borde: #2f2f3d;
+    --texto: #f4f4f8;
+    --texto-suave: #b4b8c8;
+    --texto-tenue: #7d8296;
+    --pista: #272734;
+
+    /* Portada y menús: botones claros sobre marino oscuro */
+    --acento: #e8eaf2;
+    --acento-osc: #ffffff;
+    --acento-texto: #1b2236;
+    --thead: #272734;
+    --thead-texto: #f4f4f8;
+
+    --bueno: #4cb04c;
+    --malo: #ef6b4d;
+    --mapa-verde: #2f5d3a;
+    --mapa-ambar: #5e5325;
+    --mapa-rojo: #5f2f37;
+    --mapa-tinta: #f5f5f5;
+    --atencion: #e9b44c;
+    --atencion-texto: #e9b44c;
+
+    --logo-fuerte: #e8eaf2;
+    --logo-suave: #8f97d6;
+    --logo-yoigo: #b48af0;
+    --logo-orange: #ff8a1f;
+}
+
+:root[data-tema="oscuro"][data-marca="yoigo"] {
+    --acento: #b48af0;
+    --acento-osc: #9a6ee0;
+    --acento-texto: #1a0f2b;
+    --thead: #2b2140;
+    --thead-texto: #e3d4fb;
+}
+
+:root[data-tema="oscuro"][data-marca="orange"] {
+    --acento: #ff8a1f;
+    --acento-osc: #f16e00;
+    --acento-texto: #141414;
+    --thead: #3a2817;
+    --thead-texto: #ffd6b0;
+}
+
+
+/* =====================================================================
+   4. Base
+   ===================================================================== */
+*, *::before, *::after { box-sizing: border-box; }
+
+/* [hidden] siempre oculta: si no, un display: grid/flex de la pieza lo anula
+   (la ficha de las gráficas, filas del árbol…) */
+[hidden] { display: none !important; }
+
+body {
+    margin: 0;
+    background: var(--fondo);
+    color: var(--texto);
+    font: 400 14px/1.45 var(--font-ui);
+    -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 { margin: 0; font-weight: 600; text-wrap: balance; }
+p { margin: 0; text-wrap: pretty; }
+strong { font-weight: 600; }
+a { color: var(--acento); }
+code { font-size: 13px; }
+
+:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+
+/* Iconos de trazo (Infraestructura/Iconos.fs): toman el color del texto */
+.icono {
+    flex: none;
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.75;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.nota { color: var(--texto-suave); font-size: 12.5px; }
+
+.pagina { padding: 24px; }
+
+
+/* =====================================================================
+   5. Cabecera — pegajosa, 72 px, línea de 3 px del color de marca.
+   Logotipo a la izquierda, título en el centro, tema y usuario a la derecha.
+   ===================================================================== */
+.cabecera {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 16px;
+    height: var(--alto-cabecera);
+    padding: 0 24px;
+    background: var(--cab-fondo);
+    color: var(--cab-texto);
+    border-bottom: 3px solid var(--cab-borde);
+}
+
+.cabecera-logo {
+    justify-self: start;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--texto);
+    text-decoration: none;
+    border-radius: var(--radio-sm);
+}
+
+.logotipo { width: 26px; height: 24px; }
+.logotipo-barra { fill: var(--logo-suave); }
+.logotipo-barra.fuerte { fill: var(--logo-fuerte); }
+.logotipo-texto { font-size: 15px; font-weight: 600; }
+
+/* Logotipo de marca («yoigo»): Century Gothic, en el color de su marca */
+.logotipo-marca {
+    font-family: var(--font-logo);
+    font-size: 26px;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: -.5px;
+    text-transform: lowercase;
+}
+.marca-yoigo { color: var(--logo-yoigo); }
+.marca-orange { color: var(--logo-orange); }
+
+.cabecera-titulo { min-width: 0; text-align: center; }
+.cabecera-titulo h1 {
+    font-family: var(--font-titulo);
+    font-size: 24px;
+    line-height: 1.15;
+    letter-spacing: -.2px;
+}
+.cabecera-titulo p {
+    margin-top: 2px;
+    overflow: hidden;
+    color: var(--texto-suave);
+    font-size: 13px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.cabecera-acciones {
+    justify-self: end;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.usuario { color: var(--texto-suave); font-size: 13px; }
+
+/* Botón de tema: muestra el modo elegido (automático, claro u oscuro) */
+.boton-tema > span { display: none; }
+:root:not([data-tema-modo]) .boton-tema .tema-auto,
+:root[data-tema-modo="auto"] .boton-tema .tema-auto,
+:root[data-tema-modo="claro"] .boton-tema .tema-claro,
+:root[data-tema-modo="oscuro"] .boton-tema .tema-oscuro { display: inline-flex; }
+
+
+/* =====================================================================
+   6. Botones y controles
+   ===================================================================== */
+.boton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 36px;
+    padding: 0 14px;
+    border: 1px solid var(--acento);
+    border-radius: var(--radio-sm);
+    background: var(--acento);
+    color: var(--acento-texto);
+    font: 600 13px/1 var(--font-ui);
+    text-decoration: none;
+    cursor: pointer;
+    transition: background-color var(--t-hover) var(--curva), border-color var(--t-hover) var(--curva),
+                transform var(--t-clic) var(--curva);
+}
+.boton:hover { background: var(--acento-osc); border-color: var(--acento-osc); }
+.boton:active { transform: translateY(1px); }
+.boton:disabled { opacity: .7; cursor: progress; }
+
+.boton.boton-secundario { background: var(--superficie); border-color: var(--borde); color: var(--texto); }
+.boton.boton-secundario:hover { background: var(--pista); border-color: var(--texto-tenue); }
+
+.boton-icono {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border: 1px solid var(--borde);
+    border-radius: var(--radio-sm);
+    background: var(--superficie);
+    color: var(--texto-suave);
+    cursor: pointer;
+    transition: background-color var(--t-hover) var(--curva), color var(--t-hover) var(--curva);
+}
+.boton-icono:hover { background: var(--pista); color: var(--texto); }
+
+/* Segmento: pastillas para elegir una opción (Día / Semana / Mes…) */
+.segmento {
+    display: inline-flex;
+    gap: 2px;
+    padding: 3px;
+    border: 1px solid var(--borde);
+    border-radius: 999px;
+    background: var(--fondo);
+}
+.segmento button {
+    padding: 6px 12px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--texto-suave);
+    font: 600 12px/1.2 var(--font-ui);
+    cursor: pointer;
+    transition: background-color var(--t-hover) var(--curva), color var(--t-hover) var(--curva);
+}
+.segmento button:hover { color: var(--texto); }
+.segmento button.activo { background: var(--acento); color: var(--acento-texto); }
+.segmento.lleno { display: flex; }
+.segmento.lleno button { flex: 1; }
+
+/* Campos del panel */
+.campo { display: grid; gap: 5px; }
+.campo-nombre { color: var(--texto-suave); font-size: 12px; font-weight: 600; }
+
+select,
+input[type="date"] {
+    width: 100%;
+    min-height: 34px;
+    padding: 6px 10px;
+    border: 1px solid var(--borde);
+    border-radius: var(--radio-sm);
+    background: var(--superficie);
+    color: var(--texto);
+    font: 400 13px/1.2 var(--font-ui);
+    transition: border-color var(--t-hover) var(--curva);
+}
+select:hover,
+input[type="date"]:hover { border-color: var(--texto-tenue); }
+select.elegido { border-color: var(--acento); border-left-width: 3px; }
+
+.rango-fechas {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr);
+    align-items: center;
+    gap: 6px 8px;
+}
+.rango-fechas label { color: var(--texto-tenue); font-size: 12px; }
+
+
+/* =====================================================================
+   7. Avisos y portada
+   ===================================================================== */
+.aviso {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 14px;
+    border: 1px solid var(--atencion);
+    border-left-width: 4px;
+    border-radius: var(--radio-sm);
+    background: color-mix(in srgb, var(--atencion) 12%, var(--superficie));
+    color: var(--texto);
+}
+.aviso .icono { margin-top: 1px; color: var(--atencion-texto); }
+.aviso-error { border-color: var(--malo); background: color-mix(in srgb, var(--malo) 9%, var(--superficie)); }
+.aviso-error .icono { color: var(--malo); }
+.aviso-ok { border-color: var(--bueno); background: color-mix(in srgb, var(--bueno) 9%, var(--superficie)); }
+.aviso-ok .icono { color: var(--bueno); }
+.aviso-info { border-color: var(--borde); background: var(--superficie); }
+.aviso-info .icono { color: var(--texto-suave); }
+
+/* Los avisos de TempData van arriba, al ancho del contenido */
+.pagina > .aviso { max-width: 1720px; margin: 0 auto 16px; }
+
+.portada { max-width: 1200px; margin: 0 auto; }
+
+.rejilla-informes {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--hueco);
+}
+
+.tarjeta-informe {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 230px;
+    padding: 22px 24px;
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+    background: var(--superficie);
+    color: var(--texto);
+    text-decoration: none;
+    transition: border-color var(--t-hover) var(--curva), transform var(--t-hover) var(--curva);
+}
+.tarjeta-informe:hover { border-color: var(--acento); transform: translateY(-2px); }
+.tarjeta-informe-cabeza {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+.tarjeta-informe .etiqueta {
+    color: var(--texto-tenue);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .6px;
+    text-transform: uppercase;
+}
+.tarjeta-informe h2 { font-family: var(--font-titulo); font-size: 22px; }
+.tarjeta-informe p { color: var(--texto-suave); }
+.tarjeta-informe .pie {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: auto;
+    padding-top: 14px;
+    border-top: 1px solid var(--borde);
+    color: var(--texto-suave);
+    font-size: 13px;
+}
+.tarjeta-informe .pie .icono { transition: transform var(--t-hover) var(--curva), color var(--t-hover) var(--curva); }
+.tarjeta-informe:hover .pie .icono { color: var(--acento); transform: translateX(3px); }
+
+.tarjeta-informe.bloqueada { opacity: .6; }
+.candado {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border: 1px solid var(--borde);
+    border-radius: 999px;
+    color: var(--texto-suave);
+    font-size: 12px;
+    font-weight: 600;
+}
+.candado .icono { width: 14px; height: 14px; }
+
+.vacio { padding: 40px 0; color: var(--texto-suave); text-align: center; }
+
+.pagina-error { display: grid; gap: 14px; max-width: 720px; margin: 40px auto; justify-items: start; }
+
+@media (max-width: 1100px) {
+    .rejilla-informes { grid-template-columns: minmax(0, 1fr); }
+}
+
+
+/* =====================================================================
+   8. Tablero y panel de filtros
+   Ancho de 1.120 a 1.720 px, centrado. Por debajo de 1.120 px hay
+   scroll horizontal en vez de reordenar; el único punto de ruptura es
+   760 px (sección 13).
+   ===================================================================== */
+.tablero {
+    display: grid;
+    grid-template-columns: var(--ancho-panel) minmax(0, 1fr);
+    align-items: start;
+    gap: var(--hueco);
+    min-width: 1120px;
+    max-width: 1720px;
+    margin: 0 auto;
+}
+.tablero.sin-panel { grid-template-columns: minmax(0, 1fr); }
+
+/* Pegajoso y sin scroll interno. z-index 20 (por debajo de la cabecera,
+   50): sin él, sus desplegables quedan detrás de las tarjetas animadas */
+.panel-filtros {
+    position: sticky;
+    top: calc(var(--alto-cabecera) + 3px + 16px);
+    z-index: 20;
+    display: grid;
+    gap: 14px;
+    padding: 18px 16px;
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+    background: var(--superficie);
+}
+.panel-titulo {
+    color: var(--texto-suave);
+    font-size: 12px;
+    letter-spacing: .6px;
+    text-transform: uppercase;
+}
+
+.mas-filtros { padding-top: 12px; border-top: 1px solid var(--borde); }
+.mas-filtros > summary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--texto);
+    font-size: 13px;
+    font-weight: 600;
+    list-style: none;
+    cursor: pointer;
+}
+.mas-filtros > summary::-webkit-details-marker { display: none; }
+.mas-filtros > summary::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-right: 1.75px solid currentColor;
+    border-bottom: 1.75px solid currentColor;
+    transform: rotate(-45deg);
+    transition: transform var(--t-hover) var(--curva);
+}
+.mas-filtros[open] > summary::before { transform: rotate(45deg); }
+.mas-filtros-cuerpo { display: grid; gap: 14px; margin-top: 12px; }
+
+.contador {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: var(--acento);
+    color: var(--acento-texto);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+}
+
+.panel-acciones { display: grid; gap: 8px; padding-top: 14px; border-top: 1px solid var(--borde); }
+
+.contenido { display: flex; flex-direction: column; gap: var(--hueco); min-width: 0; }
+
+/* Pestañas: una pastilla por página, la activa resaltada. A la derecha,
+   la fecha de los datos y «Actualizar» (guía 4 y 9.3) */
+.pestanas-barra,
+.aviso-informe {
+    min-width: 1120px;
+    max-width: 1720px;
+    margin: 0 auto 16px;
+}
+.pestanas-barra {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+}
+.pestanas { display: flex; flex-wrap: wrap; gap: 6px; }
+.pestana {
+    padding: 8px 18px;
+    border: 1px solid var(--borde);
+    border-radius: 999px;
+    background: var(--superficie);
+    color: var(--texto-suave);
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background-color var(--t-hover) var(--curva), border-color var(--t-hover) var(--curva),
+                color var(--t-hover) var(--curva);
+}
+.pestana:hover { border-color: var(--texto-tenue); color: var(--texto); }
+.pestana.activa { border-color: var(--acento); background: var(--acento); color: var(--acento-texto); }
+.pestanas-vista { display: flex; align-items: center; gap: 12px; }
+.estado { color: var(--texto-suave); font-size: 13px; font-variant-numeric: tabular-nums; }
+
+
+/* =====================================================================
+   9. Tira de indicadores — composición fija (nada de auto-fit)
+   ===================================================================== */
+.resumen {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 12px;
+}
+.resumen.de-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.nota-comparacion { margin-bottom: calc(var(--hueco) * -.5); }
+
+.resumen-dato {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+    padding: 14px 16px;
+    border: 1px solid var(--tile-borde);
+    border-top: 3px solid var(--tile-filo);
+    border-radius: var(--radio);
+    background: radial-gradient(120% 90% at 100% 0%, var(--tile-realce), transparent 60%), var(--superficie);
+}
+.resumen-dato.destacada {
+    --tile-filo: var(--acento);
+    --tile-realce: color-mix(in srgb, var(--acento) 12%, transparent);
+}
+
+.dato-cabeza { display: flex; align-items: center; gap: 8px; color: var(--texto-suave); }
+.dato-icono {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: var(--radio-sm);
+    background: var(--pista);
+}
+.destacada .dato-icono { background: var(--acento); color: var(--acento-texto); }
+.dato-nombre { font-size: 12px; font-weight: 600; line-height: 1.25; text-wrap: balance; }
+
+.dato-cifra {
+    font-family: var(--font-titulo);
+    font-size: clamp(20px, 1.6vw, 28px);
+    font-weight: 600;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+.destacada .dato-cifra { color: var(--acento); }
+
+.dato-detalle { color: var(--texto-suave); font-size: 12px; font-variant-numeric: tabular-nums; }
+
+.dato-cambio { margin-top: auto; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.dato-cambio small { color: var(--texto-tenue); font-size: 11px; font-weight: 400; }
+.dato-cambio.bueno { color: var(--bueno); }
+.dato-cambio.malo { color: var(--malo); }
+.dato-cambio.neutro { color: var(--texto-tenue); font-weight: 400; }
+
+
+/* =====================================================================
+   10. Tarjetas y gráficas
+   ===================================================================== */
+.tarjeta {
+    min-width: 0;
+    padding: 18px 20px;
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+    background: var(--superficie);
+}
+.tarjeta-cabeza {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px 12px;
+    margin-bottom: 14px;
+}
+.tarjeta-cabeza h2 { font-size: 15px; }
+
+/* Pareja de columnas: siempre dos */
+.rejilla-2 {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--hueco);
+}
+
+/* Leyenda en pastillas */
+.leyenda { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.pastilla {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border: 1px solid var(--borde);
+    border-radius: 999px;
+    color: var(--texto-suave);
+    font-size: 12px;
+}
+.pastilla::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--serie-principal);
+}
+.pastilla.secundaria::before { background: var(--serie-secundaria); }
+
+/* ----- Gráfica por tiempo (SVG del servidor: _GraficaLineas) ----- */
+.crono-tarjeta .nota { margin-top: 8px; }
+.crono-lienzo { position: relative; }
+.crono-svg { display: block; overflow: visible; }
+
+.crono-linea { fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.crono-linea.principal { stroke: var(--serie-principal); }
+.crono-linea.secundaria { stroke: var(--serie-secundaria); }
+.crono-area { stroke: none; }
+.crono-area.principal { fill: color-mix(in srgb, var(--serie-principal) 12%, transparent); }
+.crono-area.secundaria { fill: color-mix(in srgb, var(--serie-secundaria) 10%, transparent); }
+
+.punto { fill: var(--superficie); stroke-width: 2; transition: opacity var(--t-hover) var(--curva); }
+.punto.principal { stroke: var(--serie-principal); }
+.punto.secundaria { stroke: var(--serie-secundaria); }
+
+/* Rejilla (solo con escala de %) y su eje */
+.rejilla { stroke: var(--borde); stroke-width: 1; }
+.rejilla-texto {
+    position: absolute;
+    left: 0;
+    color: var(--texto-tenue);
+    font-size: 10.5px;
+    font-variant-numeric: tabular-nums;
+    transform: translateY(-50%);
+    pointer-events: none;
+}
+
+/* Pastillas con las cifras: encima del punto más alto, debajo del más bajo */
+.pastilla-dato {
+    position: absolute;
+    padding: 1px 6px;
+    border-radius: 6px;
+    background: var(--serie-principal);
+    color: var(--acento-texto);
+    font-size: 11px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+}
+.pastilla-dato.secundaria { background: var(--serie-secundaria); color: var(--serie-secundaria-texto); }
+
+/* Etiquetas del eje de tiempo */
+.crono-lienzo .eje {
+    position: absolute;
+    color: var(--texto-tenue);
+    font-size: 11px;
+    white-space: nowrap;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+}
+
+/* Al pasar el ratón: el punto activo resalta y los demás se desvanecen */
+.con-foco .marca-x:not(.foco) .punto { opacity: .35; }
+.marca-x.foco .punto { stroke-width: 3; }
+
+/* Guía vertical: mismos márgenes que Graficas.fs (arriba 30, alto útil 196) */
+.guia {
+    position: absolute;
+    top: 30px;
+    height: 196px;
+    border-left: 1px dashed var(--texto-tenue);
+    pointer-events: none;
+}
+
+/* Ficha al pasar el ratón (sale del <title> de cada punto) */
+.ficha {
+    position: absolute;
+    top: 0;
+    z-index: 5;
+    display: grid;
+    gap: 3px;
+    min-width: 150px;
+    padding: 8px 10px;
+    border: 1px solid var(--borde);
+    border-radius: var(--radio-sm);
+    background: var(--superficie);
+    color: var(--texto);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+}
+.ficha strong { margin-bottom: 2px; }
+.ficha span { display: flex; align-items: center; gap: 6px; color: var(--texto-suave); }
+.ficha span::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--serie-principal);
+}
+.ficha span + span::before { background: var(--serie-secundaria); }
+
+/* ----- Barras horizontales: nombre | barra | cifra -----
+   El largo sale de --fraccion (0–1) y crece con scaleX: la cifra va en su
+   columna, así nunca se sale ni pisa la barra. */
+.hbarras { display: grid; gap: 10px; }
+.hbarra {
+    display: grid;
+    grid-template-columns: minmax(0, 34%) minmax(0, 1fr) 5.5em;
+    align-items: center;
+    gap: 4px 12px;
+}
+.hbarra.pareja .hbarra-nombre { grid-row: span 2; }
+.hbarra-nombre {
+    overflow: hidden;
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+.hbarra-pista { height: 14px; overflow: hidden; border-radius: 4px; background: var(--pista); }
+.hbarra-pista.hbarra-media { height: 8px; }
+.hbarra-relleno,
+.hbarra-media-relleno {
+    display: block;
+    height: 100%;
+    border-radius: 4px;
+    background: var(--serie-principal);
+    transform: scaleX(var(--fraccion, 0));
+    transform-origin: left center;
+    animation: crecer var(--t-cuenta) var(--curva) both;
+}
+.hbarra-media-relleno,
+.hbarras.secundaria .hbarra-relleno { background: var(--serie-secundaria); }
+.hbarra-cifra { font-size: 13px; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.hbarra-cifra.secundaria { color: var(--texto-suave); font-size: 12px; font-weight: 400; }
+
+
+/* =====================================================================
+   11. Tablas
+   ===================================================================== */
+.tabla-scroll { overflow: auto; border: 1px solid var(--borde); border-radius: var(--radio-sm); }
+.tabla-scroll.alta { max-height: 520px; }
+
+table.ranking,
+table.arbol {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+}
+
+table.ranking th, table.ranking td,
+table.arbol th, table.arbol td {
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--borde);
+    text-align: right;
+    white-space: nowrap;
+}
+
+/* Encabezado y total quedan fijos al hacer scroll */
+table.ranking thead th,
+table.arbol thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--thead);
+    color: var(--thead-texto);
+    font-size: 11.5px;
+    font-weight: 600;
+}
+table.ranking tfoot td,
+table.arbol tfoot td {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    border-top: 2px solid var(--borde);
+    border-bottom: 0;
+    background: var(--superficie);
+    font-weight: 600;
+}
+
+table.ranking .izq,
+table.arbol .izq { text-align: left; }
+td.nombre { font-weight: 500; }
+td.total { font-weight: 600; }
+tbody tr:hover td:not(.calor, .mapa-verde, .mapa-ambar, .mapa-rojo) { background: var(--pista); }
+
+/* ----- Ranking (site.js pone las clases) ----- */
+
+/* Semáforo pastel, como el formato condicional de Excel */
+td.mapa-verde { background: var(--mapa-verde); color: var(--mapa-tinta); }
+td.mapa-ambar { background: var(--mapa-ambar); color: var(--mapa-tinta); }
+td.mapa-rojo { background: var(--mapa-rojo); color: var(--mapa-tinta); }
+
+/* Calor: la intensidad del acento sigue al volumen (--calor de 0 a 1) */
+td.calor {
+    background: color-mix(in srgb, var(--acento) calc(var(--calor, 0) * 38%), var(--superficie));
+    font-weight: 600;
+}
+
+/* Grupos con pocas llamadas: al final y en gris, sin color */
+tr.pocas td { color: var(--texto-tenue); }
+
+/* Texto pequeño bajo el nombre (p. ej. el Motivo 2 de un Motivo 3) */
+.sub {
+    display: block;
+    max-width: 320px;
+    overflow: hidden;
+    color: var(--texto-tenue);
+    font-size: 11.5px;
+    font-weight: 400;
+    text-overflow: ellipsis;
+}
+
+/* Pastilla dentro de una celda */
+.chip {
+    display: inline-flex;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11.5px;
+    font-weight: 600;
+}
+.chip-mismo { background: var(--mapa-ambar); color: var(--mapa-tinta); }
+.chip-diferente { background: var(--pista); color: var(--texto-suave); }
+
+/* Filas de otras páginas (al imprimir salen todas) */
+tr.fuera-de-pagina { display: none; }
+
+/* Paginación: «1–10 / 57» y flechas */
+.paginador {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 6px;
+    margin-top: 10px;
+    color: var(--texto-suave);
+    font-size: 12.5px;
+    font-variant-numeric: tabular-nums;
+}
+.paginador span { margin-right: 6px; }
+.paginador button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: 1px solid var(--borde);
+    border-radius: var(--radio-sm);
+    background: var(--superficie);
+    color: var(--texto-suave);
+    cursor: pointer;
+}
+.paginador button:hover:not(:disabled) { background: var(--pista); color: var(--texto); }
+.paginador button:disabled { opacity: .4; cursor: default; }
+.paginador button::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-right: 1.75px solid currentColor;
+    border-bottom: 1.75px solid currentColor;
+}
+.paginador .anterior::before { margin-left: 3px; transform: rotate(135deg); }
+.paginador .siguiente::before { margin-right: 3px; transform: rotate(-45deg); }
+
+/* Encabezados que ordenan (site.js los convierte en botones) */
+.ordenar {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+}
+th[aria-sort] .ordenar::after {
+    content: "";
+    border: 4px solid transparent;
+}
+th[aria-sort="ascending"] .ordenar::after { border-bottom-color: currentColor; margin-top: -4px; }
+th[aria-sort="descending"] .ordenar::after { border-top-color: currentColor; margin-top: 4px; }
+
+/* Árbol desplegable: tr.padre / tr.hija */
+tr.padre td { font-weight: 600; }
+tr.hija td { background: color-mix(in srgb, var(--pista) 45%, var(--superficie)); color: var(--texto-suave); }
+tr.hija td.izq { padding-left: 42px; font-weight: 400; }
+
+.desplegar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    margin-right: 6px;
+    padding: 0;
+    vertical-align: middle;
+    border: 1px solid var(--borde);
+    border-radius: 6px;
+    background: var(--superficie);
+    color: var(--texto-suave);
+    cursor: pointer;
+}
+.desplegar .icono { width: 14px; height: 14px; transition: transform var(--t-hover) var(--curva); }
+.desplegar[aria-expanded="true"] .icono { transform: rotate(90deg); }
+
+
+/* =====================================================================
+   12. Movimiento
+   ===================================================================== */
+
+/* Tarjetas que aparecen, escalonadas (site.js pone --i) */
+.aparece {
+    animation: aparecer var(--t-aparece) var(--curva) both;
+    animation-delay: calc(var(--i, 0) * var(--t-escalon));
+}
+@keyframes aparecer {
+    from { opacity: 0; transform: translateY(8px); }
+}
+
+/* Las barras crecen con scaleX, nunca animando el ancho */
+@keyframes crecer {
+    from { transform: scaleX(0); }
+}
+
+/* Al filtrar o actualizar no se repiten las animaciones de entrada */
+.actualizado .aparece,
+.actualizado .hbarra-relleno,
+.actualizado .hbarra-media-relleno { animation: none; }
+
+/* Barra de carga arriba al navegar o aplicar filtros */
+.barra-carga {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 100;
+    width: 100%;
+    height: 3px;
+    background: var(--carga);
+    transform: scaleX(0);
+    transform-origin: left center;
+    opacity: 0;
+    pointer-events: none;
+}
+.barra-carga.activa { opacity: 1; animation: cargando 8s var(--curva) forwards; }
+@keyframes cargando {
+    0% { transform: scaleX(0); }
+    15% { transform: scaleX(.4); }
+    100% { transform: scaleX(.92); }
+}
+
+/* Con «reducir movimiento» no se anima nada */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation: none !important;
+        transition: none !important;
+    }
+    .barra-carga.activa { transform: scaleX(.6); }
+}
+
+
+/* =====================================================================
+   13. Móvil — el único punto de ruptura: el panel sube y todo se apila
+   ===================================================================== */
+@media (max-width: 760px) {
+    .pagina { padding: 16px; }
+
+    .cabecera {
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: 12px;
+        padding: 0 16px;
+    }
+    .cabecera-titulo { text-align: left; }
+    .cabecera-titulo h1 {
+        overflow: hidden;
+        font-size: 18px;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+    }
+    .cabecera-titulo p,
+    .usuario,
+    .logotipo-texto { display: none; }
+    .cabecera .logotipo-marca { font-size: 22px; }
+
+    .tablero { grid-template-columns: minmax(0, 1fr); min-width: 0; }
+    .panel-filtros { position: static; }
+    .pestanas-barra,
+    .aviso-informe { min-width: 0; }
+    .pestanas-barra { flex-direction: column; align-items: stretch; }
+    .pestanas-vista { justify-content: space-between; }
+    .resumen,
+    .resumen.de-5 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .rejilla-2 { grid-template-columns: minmax(0, 1fr); }
+    .hbarra { grid-template-columns: minmax(0, 38%) minmax(0, 1fr) 4.8em; }
+}
+
+
+/* =====================================================================
+   14. Impresión
+   ===================================================================== */
+@media print {
+    .cabecera { position: static; }
+    .panel-filtros,
+    .pestanas,
+    .pestanas-vista form,
+    .paginador,
+    .boton-tema,
+    .segmento,
+    .desplegar { display: none; }
+    .tablero { display: block; min-width: 0; }
+    .tarjeta,
+    .resumen-dato { break-inside: avoid; }
+    .tabla-scroll,
+    .tabla-scroll.alta { max-height: none; overflow: visible; }
+    tr.fuera-de-pagina { display: table-row; }
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+}

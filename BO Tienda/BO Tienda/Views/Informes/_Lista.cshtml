@@ -1,0 +1,18 @@
+@* =====================================================================
+   Views/Informes/_Lista.cshtml — Un desplegable del panel de filtros
+   ---------------------------------------------------------------------
+   Al cambiarlo se envía el formulario (site.js). Si tiene algo elegido
+   se marca con el filo del acento (.elegido).
+   ===================================================================== *@
+@model FiltroLista
+
+<div class="campo">
+    <label class="campo-nombre" for="f-@Model.Clave">@Model.Etiqueta</label>
+    <select id="f-@Model.Clave" name="@Model.Clave" class="@(string.IsNullOrEmpty(Model.Elegido) ? null : "elegido")">
+        <option value="">Todas</option>
+        @foreach (var op in Model.Opciones)
+        {
+            <option value="@op" selected="@(op == Model.Elegido)">@op</option>
+        }
+    </select>
+</div>

@@ -1,0 +1,243 @@
+-- =====================================================================
+-- Consultas/bo_tiendas_motivo.bqsql — Pestaña «Motivo» de BO Tiendas
+-- ---------------------------------------------------------------------
+-- Una fila por ticket y llamada entrante (DataOrb) de la misma línea entre
+-- el día del ticket y los 3 días siguientes. Motivo_rellamada dice si el
+-- motivo de la llamada está en el catálogo («Mismo motivo») o no.
+-- La app cruza id_ticket con la consulta de Tickets para saber agente,
+-- team y supervisor, y para contar los tickets del periodo.
+-- Columnas que usa la app: id_ticket, fecha_creacion, Motivo_2, Motivo_3,
+-- externalConversationId y Motivo_rellamada (ver Services/TableroMotivo.fs).
+-- =====================================================================
+
+WITH tickets AS (
+  SELECT
+    id_ticket,
+    fecha_creacion,
+    id_msisdn
+  FROM `mo-vendor-management-reporting.JZZBOGOTA.v_ticketing_edison_shop`
+  WHERE DATE(fecha_creacion) >= DATE_SUB(CURRENT_DATE('Europe/Madrid'), INTERVAL 6 MONTH)
+    AND id_msisdn IS NOT NULL
+    AND TRIM(CAST(id_msisdn AS STRING)) != ''
+    AND (
+          (
+                tipo_suscripcion = 'SOLO MOVIL'
+            AND tipo_ticket IN (
+                  'CAMBIOS ADMINISTRATIVOS',
+                  'CANCELACIONES',
+                  'CAMBIOS EN LAS LINEAS MOVILES',
+                  'SOLICITUDES',
+                  'CAMBIOS EN LOS DISPOSITIVOS',
+                  'CAMBIO TARIFAS',
+                  'CAMBIO DATOS CLIENTES VARIOS',
+                  'ACTIVAR/DESACTIVAR SERVICIOS VARIOS',
+                  'RENOVACION PROMOCION',
+                  'RENOVACION PROMOCION RESIDENCIAL',
+                  'DISCONFORMIDAD CLIENTES ATC',
+                  'DISPOSITIVO - IMEI'
+                )
+          )
+       OR (
+                tipo_suscripcion = 'CONVERGENTE'
+            AND tipo_ticket IN (
+                  'CAMBIOS CONVERGENTE',
+                  'CANCELACIONES',
+                  'INCIDENCIA CITA',
+                  'INCIDENCIAS EN LA GESTION',
+                  'OT EN INCIDENCIA',
+                  'RELANZAR PORTABILIDAD'
+                )
+          )
+        )
+),
+rango AS (
+  -- limita el escaneo de la tabla grande al rango de fechas de los tickets
+  SELECT
+    MIN(DATE(fecha_creacion)) AS fecha_ini,
+    DATE_ADD(MAX(DATE(fecha_creacion)), INTERVAL 3 DAY) AS fecha_fin
+  FROM tickets
+),
+dataorb AS (
+  SELECT DISTINCT
+    DATE(d.day) AS dia,
+    d.enh_ani,
+    d.interactionClassification_interactionBusinessScope AS Motivo_2,
+    d.interactionScopeDetail_classification              AS Motivo_3,
+    d.externalConversationId
+  FROM `mo-customer-ops-reporting.smartops_prod.ALL_dataorb_to_mo_insight_all_data_flattened_GAMMA` d
+  CROSS JOIN rango r
+  WHERE DATE(d.day) BETWEEN r.fecha_ini AND r.fecha_fin
+    AND d.enh_ani IS NOT NULL
+    AND UPPER(TRIM(d.channelDirection)) = 'INBOUND'
+    AND UPPER(TRIM(d.channel))          = 'CALL'
+),
+catalogo AS (
+  SELECT
+    -- llave normalizada: minúsculas, sin tildes, sin espacios
+    LOWER(REGEXP_REPLACE(REGEXP_REPLACE(NORMALIZE(m2, NFD), r'\p{M}', ''), r'\s', '')) AS m2_n,
+    LOWER(REGEXP_REPLACE(REGEXP_REPLACE(NORMALIZE(m3, NFD), r'\p{M}', ''), r'\s', '')) AS m3_n
+  FROM UNNEST(ARRAY<STRUCT<m2 STRING, m3 STRING>>[
+    ('Comercial','oferta'),
+    ('Comercial','solicitudMejoraOferta'),
+    ('Comercial','altaContratacion'),
+    ('Comercial','diferentesCondiciones'),
+    ('Comercial','errorInformacion'),
+    ('Comercial','noSolicitado'),
+    ('Comercial','incompleto'),
+    ('Comercial','altaPorPorta'),
+    ('Comercial','documentacionErronea'),
+    ('Comercial','verificaciónTerceros'),
+    ('Comercial','dispositivoContratacion'),
+    ('Comercial','dispositivoDiferentesCondiciones'),
+    ('Comercial','dispositivoErrorInformacion'),
+    ('Comercial','dispositivoNoSolicitado'),
+    ('Comercial','dispositivoIncompleto'),
+    ('Comercial','dispositivoDocumentacionErronea'),
+    ('Comercial','dispositivoVerificacionTerceros'),
+    ('Comercial','cambioDeTarifaContratacion'),
+    ('Comercial','cambioDeTarifaDiferentesCondiciones'),
+    ('Comercial','cambioDeTarifaErrorInformacion'),
+    ('Comercial','cambioDeTarifaNoSolicitado'),
+    ('Comercial','cambioDeTarifaIncompleto'),
+    ('Comercial','migracionPrePost'),
+    ('Comercial','fraude'),
+    ('Comercial','malaAtencion'),
+    ('Comercial','penalizacionOtroOperador'),
+    ('Comercial','solicitudInstalador'),
+    ('Comercial','gestionOfertaPrevia'),
+    ('Provision','fechaPortabilidad'),
+    ('Provision','problemaPortabilidad'),
+    ('Provision','rechazoPortabilidad'),
+    ('Provision','cancelación'),
+    ('Provision','cambioFechaPortabilidad'),
+    ('Provision','incomunicaciónTrasPortabilidad'),
+    ('Provision','citaInstalador'),
+    ('Provision','instalación'),
+    ('Provision','estadoProvisión'),
+    ('Provision','retrasoInstalación'),
+    ('Provision','cambioDomicilio'),
+    ('Provision','cambioSegmento'),
+    ('Provision','activaciónServicios'),
+    ('Provision','activacionSIM'),
+    ('Pedido/logistica','estadoPedido'),
+    ('Pedido/logistica','modificacionDireccionDeEntrega'),
+    ('Pedido/logistica','errorDeEntrega'),
+    ('Pedido/logistica','errorDevolucion'),
+    ('Pedido/logistica','devolucionTerminalOEquipo'),
+    ('Pedido/logistica','DocumentacionDeEntrega'),
+    ('Pedido/logistica','demoraEnLaEntrega'),
+    ('Pedido/logistica','solicitudReparacion'),
+    ('Pedido/logistica','Demora reparación'),
+    ('Pedido/logistica','noConformeDiagReparacion'),
+    ('Pedido/logistica','cancelacion'),
+    ('Pedido/logistica','duplicadoSim'),
+    ('Pedido/logistica','otros'),
+    ('Facturación y Cobros','AbonoAjusteCompensacionNoAplicado'),
+    ('Facturación y Cobros','cargoServicioProductoNoReconocido'),
+    ('Facturación y Cobros','cargoServicioProductoNoEsLoEsperado'),
+    ('Facturación y Cobros','prorrateoIncorrecto'),
+    ('Facturación y Cobros','cobroTrasDesistimiento'),
+    ('Facturación y Cobros','impuestoMalAplicado'),
+    ('Facturación y Cobros','promoDescuentoNoAplicadoOMalAplicado'),
+    ('Facturación y Cobros','perdidaDeBonosDescuentos'),
+    ('Facturación y Cobros','finPromocionDescuento'),
+    ('Facturación y Cobros','ciclos'),
+    ('Facturación y Cobros','cuotaVapErroneo'),
+    ('Facturación y Cobros','pagoInicialErroneo'),
+    ('Facturación y Cobros','revampCambioDeCatalogo'),
+    ('Facturación y Cobros','cargoPorGestionDeCobros'),
+    ('Facturación y Cobros','cargoPorReconexion'),
+    ('Facturación y Cobros','cargoEnvioTecnicoOInstalacion'),
+    ('Facturación y Cobros','penalizacionCdP'),
+    ('Facturación y Cobros','penalizacionEquipamiento'),
+    ('Facturación y Cobros','consumoNoReconocidoIncorrecto'),
+    ('Facturación y Cobros','datosCliente'),
+    ('Facturación y Cobros','cargoDuplicado'),
+    ('Facturación y Cobros','formatoFactura'),
+    ('Facturación y Cobros','cargoPorBajaNoTramitadaODemorada'),
+    ('Facturación y Cobros','gestionCuentasOrCambioTitularNoRealizado'),
+    ('Facturación y Cobros','BloqueosDesbloqueosNoRealizados'),
+    ('Facturación y Cobros','ActivacionDesactivacionNoRealizada'),
+    ('Facturación y Cobros','amortizacionCuotas'),
+    ('Facturación y Cobros','consumoVozDatos'),
+    ('Facturación y Cobros','Reembolsocuentaincorrecta'),
+    ('Facturación y Cobros','devoluciónCambioCiclo'),
+    ('Facturación y Cobros','recobro'),
+    ('Facturación y Cobros','recobroPorBizum'),
+    ('Facturación y Cobros','incomunicadoCobros'),
+    ('Facturación y Cobros','incomunicadoTrasPagoDeuda'),
+    ('Facturación y Cobros','facturaDuplicada'),
+    ('Facturación y Cobros','informacionFactura'),
+    ('Facturación y Cobros','otros'),
+    ('Prepago','saldo'),
+    ('Prepago','recargas'),
+    ('Prepago','recargaYGana promociones'),
+    ('Prepago','traspasoAnticipoSaldo'),
+    ('Prepago','Renovación tarifas/bonos'),
+    ('Prepago','otros'),
+    ('Baja','bajaVoluntaria'),
+    ('Baja','bajaPorPortabilidad'),
+    ('Baja','bajaNoSolicitada'),
+    ('Baja','desistimiento'),
+    ('Baja','devolucionEquipos'),
+    ('Baja','desactivacionContenidoServicio'),
+    ('Baja','suspension'),
+    ('Baja','cancelarSolicitudBaja'),
+    ('Baja','otros'),
+    ('Datos cliente','cambioTitular'),
+    ('Datos cliente','modificacionDatosCliente'),
+    ('Datos cliente','Derecho oposición'),
+    ('Datos cliente','modificacionConsentimientos'),
+    ('Datos cliente','envioDocumentos'),
+    ('Datos cliente','facturaRenoveDispositivo'),
+    ('Datos cliente','otros'),
+    ('Datos cliente','condicionesDeContrato'),
+    ('Datos cliente','parqueContratado'),
+    ('Datos cliente','cambioCuentaBancaria'),
+    ('Datos cliente','cambioDireccionAdministrativa'),
+    ('Datos cliente','compromisoPermanencia'),
+    ('Técnico TV','ott'),
+    ('Técnico móvil','cobertura'),
+    ('Técnico móvil','malaCalidadLlamada'),
+    ('Técnico móvil','navegaciónLenta'),
+    ('Técnico móvil','noLlama'),
+    ('Técnico móvil','noRecibe'),
+    ('Técnico móvil','noNavega'),
+    ('Técnico móvil','duplicadoSim'),
+    ('Técnico móvil','roamingVoz'),
+    ('Técnico móvil','roamingDatos'),
+    ('Técnico móvil','bloqueoDesbloqueoTerminal'),
+    ('Técnico móvil','pinPuk'),
+    ('Técnico móvil','consumoDatos'),
+    ('Técnico móvil','consultaCaso'),
+    ('Técnico móvil','configuraciónMóvil'),
+    ('Técnico móvil','sms'),
+    ('Técnico móvil','otros'),
+    ('Técnico móvil','activacionSIM'),
+    ('Técnico móvil','solicitudReparacion'),
+    ('Digital / Canales Online','areaClientesAppMasOrange'),
+    ('Digital / Canales Online','appsNoMasOrange'),
+    ('Digital / Canales Online','otros'),
+    ('Otros','otros')
+  ])
+)
+SELECT
+  t.id_ticket,
+  t.fecha_creacion,
+  t.id_msisdn,
+  d.dia AS fecha_registro,
+  d.Motivo_2,
+  d.Motivo_3,
+  d.externalConversationId,
+  CASE
+    WHEN c.m2_n IS NOT NULL THEN 'Mismo motivo'
+    ELSE 'Diferente motivo'
+  END AS Motivo_rellamada
+FROM tickets t
+JOIN dataorb d
+  ON  CAST(d.enh_ani AS STRING) = CAST(t.id_msisdn AS STRING)
+  AND d.dia BETWEEN DATE(t.fecha_creacion)
+                AND DATE_ADD(DATE(t.fecha_creacion), INTERVAL 3 DAY)
+LEFT JOIN catalogo c
+  ON  c.m2_n = LOWER(REGEXP_REPLACE(REGEXP_REPLACE(NORMALIZE(d.Motivo_2, NFD), r'\p{M}', ''), r'\s', ''))
+  AND c.m3_n = LOWER(REGEXP_REPLACE(REGEXP_REPLACE(NORMALIZE(d.Motivo_3, NFD), r'\p{M}', ''), r'\s', ''))

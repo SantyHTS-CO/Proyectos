@@ -1,0 +1,26 @@
+@model ErrorViewModel
+@{
+    ViewData["Title"] = "Error";
+    ViewData["Subtitulo"] = "No se pudo completar la solicitud";
+    ViewData["Marca"] = "portada";
+}
+
+<div class="portada">
+    <section class="tarjeta pagina-error">
+        <h2>Ocurrió un error al procesar la solicitud.</h2>
+
+        @if (Model.ShowRequestId)
+        {
+            <p><strong>Identificador de la solicitud:</strong> <code>@Model.RequestId</code></p>
+        }
+
+        <p class="nota">
+            En el entorno <strong>Development</strong> se ve el detalle del error. No lo actives en una app
+            publicada: puede mostrar información sensible a los usuarios. Para depurar en tu equipo, pon la
+            variable de entorno <strong>ASPNETCORE_ENVIRONMENT</strong> en <strong>Development</strong> y
+            reinicia la app.
+        </p>
+
+        <a class="boton" asp-controller="Home" asp-action="Index">Volver a Informes</a>
+    </section>
+</div>

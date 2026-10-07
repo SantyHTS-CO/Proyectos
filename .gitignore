@@ -1,0 +1,11 @@
+# Compilación de .NET
+bin/
+obj/
+
+# Visual Studio (configuración de cada usuario)
+.vs/
+*.user
+*.suo
+
+# Excel descargados al probar
+*.xlsx

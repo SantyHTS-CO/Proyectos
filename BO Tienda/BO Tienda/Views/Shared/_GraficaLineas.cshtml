@@ -1,0 +1,70 @@
+@* =====================================================================
+   Views/Shared/_GraficaLineas.cshtml — Gráfica por tiempo (SVG + pastillas)
+   ---------------------------------------------------------------------
+   Posiciones y trazos los calcula Infraestructura/Graficas.fs. Cada punto
+   lleva su <title> «Etiqueta · Serie valor · …»: site.js lo convierte en
+   la ficha al pasar el ratón, con la guía vertical.
+   Las cifras van en pastillas (HTML encima del SVG) y, con escala de %,
+   hay rejilla con su eje. En línea solo van posiciones (left, top);
+   los colores, en site.css (.principal / .secundaria).
+   ===================================================================== *@
+@model GraficaCrono
+
+<div class="leyenda">
+    <span class="pastilla">@Model.NombrePrincipal</span>
+    <span class="pastilla secundaria">@Model.NombreSecundaria</span>
+</div>
+
+<div class="crono-lienzo" data-crono>
+    <svg class="crono-svg" width="100%" height="@Model.Alto" role="img"
+         aria-label="@Model.NombrePrincipal y @Model.NombreSecundaria en el tiempo">
+        @* Capa estirable (viewBox 0–1000) para rejilla, curvas y rellenos *@
+        <svg width="100%" height="100%" viewBox="0 0 1000 @Model.Alto" preserveAspectRatio="none">
+            @foreach (var r in Model.Rejilla)
+            {
+                <line class="rejilla" x1="0" x2="1000" y1="@r.Y" y2="@r.Y" vector-effect="non-scaling-stroke" />
+            }
+            <path class="crono-area principal" d="@Model.AreaPrincipal" />
+            <path class="crono-area secundaria" d="@Model.AreaSecundaria" />
+            <path class="crono-linea principal" d="@Model.LineaPrincipal" vector-effect="non-scaling-stroke" />
+            <path class="crono-linea secundaria" d="@Model.LineaSecundaria" vector-effect="non-scaling-stroke" />
+        </svg>
+        @* Puntos en % para que no se deformen *@
+        @foreach (var p in Model.Puntos)
+        {
+            <g class="marca-x" data-x="@p.X">
+                <title>@p.Ficha</title>
+                <circle class="punto principal" cx="@(p.X)%" cy="@p.YPrincipal" r="@Model.Radio" />
+                <circle class="punto secundaria" cx="@(p.X)%" cy="@p.YSecundaria" r="@Model.Radio" />
+            </g>
+        }
+    </svg>
+
+    @foreach (var r in Model.Rejilla)
+    {
+        <span class="rejilla-texto" style="top:@(r.Y)px">@r.Texto</span>
+    }
+    @foreach (var p in Model.Puntos)
+    {
+        if (p.DatoPrincipal is not null)
+        {
+            <span class="pastilla-dato principal" style="left:@(p.X)%;top:@(p.YDatoPrincipal)px">@p.DatoPrincipal</span>
+            <span class="pastilla-dato secundaria" style="left:@(p.X)%;top:@(p.YDatoSecundaria)px">@p.DatoSecundaria</span>
+        }
+        if (p.Eje is not null)
+        {
+            <span class="eje" style="left:@(p.X)%;top:@(Model.YEje)px">@p.Eje</span>
+        }
+    }
+</div>
+
+<p class="nota">
+    @if (Model.EscalaPropia)
+    {
+        <text>Cada línea usa su propia escala, como en Power BI.</text>
+    }
+    @if (!Model.ConNumeros)
+    {
+        <text>Pasa el ratón por la gráfica para ver los valores.</text>
+    }
+</p>

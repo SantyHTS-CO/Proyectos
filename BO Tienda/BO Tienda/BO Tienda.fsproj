@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>BO_Tienda</RootNamespace>
+    <!-- Las vistas .cshtml se compilan en C# al ejecutar y toman esta versión.
+         Sin ella usan C# 8 y fallan con "is not null", "new()"…
+         "latest" lo entienden tanto F# como C#. -->
+    <LangVersion>latest</LangVersion>
+    <!-- Sin "BO Tienda.exe": la política de seguridad del equipo bloquea los
+         .exe recién compilados ("Acceso denegado"). Visual Studio y dotnet run
+         arrancan la app con dotnet.exe + "BO Tienda.dll". -->
+    <UseAppHost>false</UseAppHost>
+  </PropertyGroup>
+
+  <!-- En F# el orden importa: cada archivo solo ve lo que está ARRIBA de él -->
+  <ItemGroup>
+    <Compile Include="Models/ErrorViewModel.fs" />
+    <Compile Include="Models/Modelos.fs" />
+    <Compile Include="Models/Tickets.fs" />
+    <Compile Include="Models/Motivo.fs" />
+    <Compile Include="Infraestructura/Formato.fs" />
+    <Compile Include="Infraestructura/Iconos.fs" />
+    <Compile Include="Infraestructura/Graficas.fs" />
+    <Compile Include="Infraestructura/Excel.fs" />
+    <Compile Include="Services/IFuenteDatos.fs" />
+    <Compile Include="Services/BigQueryOdbcFuente.fs" />
+    <Compile Include="Services/InformeService.fs" />
+    <Compile Include="Services/Tablero.fs" />
+    <Compile Include="Services/TableroTickets.fs" />
+    <Compile Include="Services/TableroMotivo.fs" />
+    <Compile Include="Controllers/HomeController.fs" />
+    <Compile Include="Controllers/InformesController.fs" />
+    <Compile Include="Program.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ClosedXML" Version="0.105.1" />                                   <!-- Descarga general a Excel -->
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation" Version="10.0.12" /> <!-- Vistas .cshtml en un proyecto F# -->
+    <PackageReference Include="System.Data.Odbc" Version="10.0.12" />                            <!-- Conexión a BigQuery por ODBC -->
+  </ItemGroup>
+
+  <!-- Las consultas de Consultas/ viajan con la app al compilar y al publicar -->
+  <ItemGroup>
+    <None Include="Consultas\**\*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

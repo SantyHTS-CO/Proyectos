@@ -1,0 +1,103 @@
+-- =====================================================================
+-- Consultas/bo_tiendas.bqsql — Tarjeta "BO Tiendas" (tickets + nómina)
+-- ---------------------------------------------------------------------
+-- Extensión .bqsql = SQL de BigQuery (GoogleSQL). Con .sql, Visual Studio
+-- la revisaría como SQL Server y marcaría errores falsos.
+-- Se ejecuta tal cual en BigQuery por ODBC (DSN=BQCOL). Puedes editarla
+-- aquí libremente (varias líneas, comentarios con --). Para verla en la
+-- app pulsa "Actualizar" en el informe; no hace falta reiniciar.
+-- Si algún día quieres filtrar por la fecha del día, usa ? (ej.:
+-- WHERE fecha_carga = ?) y la app lo llena con la fecha de hoy.
+-- =====================================================================
+WITH nomina AS (
+  SELECT
+    DATE(N.Fecha) AS fecha_d,
+    N.Sector,
+    N.Super,
+    N.Team,
+    N.Agente,
+    N.Cargo,
+    N.Legajo,
+    N.Avaya,
+    N.DataOrb,
+    N.Genesys,
+    N.Correo,
+    N.FechaIngreso,
+    N.Antiguedad,
+    DATE_DIFF(DATE(N.Fecha), DATE(N.FechaIngreso), DAY) AS DiasCompania,
+    CONCAT(
+      UPPER(CONCAT(
+        SPLIT(TRIM(SPLIT(N.Agente, ',')[SAFE_OFFSET(1)]), ' ')[SAFE_OFFSET(0)],
+        ' ',
+        SUBSTR(TRIM(SPLIT(N.Agente, ',')[SAFE_OFFSET(0)]), 1, 1)
+      )),
+      ' - JAZZPLAT BOGOTA'
+    ) AS Usuario_BO
+  FROM `mo-vendor-management-reporting.JZZBOGOTA.NominaBogota` N
+  WHERE STRPOS(N.Agente, ',') > 0
+    AND N.Sector LIKE '%CO BO Tiendas YGMM'   -- quítalo si los tickets incluyen otros sectores
+),
+nomina_llave AS (
+  SELECT
+    CONCAT(FORMAT_DATE('%Y%m%d', fecha_d), Usuario_BO) AS Llave,
+    *
+  FROM nomina
+  -- evita duplicar tickets si dos agentes generan el mismo usuario el mismo día
+  QUALIFY ROW_NUMBER() OVER (PARTITION BY CONCAT(FORMAT_DATE('%Y%m%d', fecha_d), Usuario_BO)
+                             ORDER BY Legajo) = 1
+),
+tickets AS (
+  SELECT
+    CONCAT(
+      FORMAT_DATE('%Y%m%d', DATE(fecha_carga)),
+      UPPER(TRIM(usuario_ultima_intervencion))
+    ) AS Llave,
+    *
+  FROM `mo-vendor-management-reporting.JZZBOGOTA.v_ticketing_edison_shop`
+  WHERE (
+          tipo_suscripcion = 'SOLO MOVIL'
+      AND tipo_ticket IN (
+            'CAMBIOS ADMINISTRATIVOS',
+            'CANCELACIONES',
+            'CAMBIOS EN LAS LINEAS MOVILES',
+            'SOLICITUDES',
+            'CAMBIOS EN LOS DISPOSITIVOS',
+            'CAMBIO TARIFAS',
+            'CAMBIO DATOS CLIENTES VARIOS',
+            'ACTIVAR/DESACTIVAR SERVICIOS VARIOS',
+            'RENOVACION PROMOCION',
+            'RENOVACION PROMOCION RESIDENCIAL',
+            'DISCONFORMIDAD CLIENTES ATC',
+            'DISPOSITIVO - IMEI'
+          )
+        )
+     OR (
+          tipo_suscripcion = 'CONVERGENTE'
+      AND tipo_ticket IN (
+            'CAMBIOS CONVERGENTE',
+            'CANCELACIONES',
+            'INCIDENCIA CITA',
+            'INCIDENCIAS EN LA GESTION',
+            'OT EN INCIDENCIA',
+            'RELANZAR PORTABILIDAD'
+          )
+        )
+)
+SELECT
+  t.*,
+  n.Sector        AS nom_Sector,
+  n.Super         AS nom_Super,
+  n.Team          AS nom_Team,
+  n.Agente        AS nom_Agente,
+  n.Cargo         AS nom_Cargo,
+  n.Legajo        AS nom_Legajo,
+  n.Avaya         AS nom_Avaya,
+  n.DataOrb       AS nom_DataOrb,
+  n.Genesys       AS nom_Genesys,
+  n.Correo        AS nom_Correo,
+  n.FechaIngreso  AS nom_FechaIngreso,
+  n.DiasCompania  AS nom_DiasCompania,
+  n.Antiguedad    AS nom_Antiguedad
+FROM tickets t
+LEFT JOIN nomina_llave n
+  ON t.Llave = n.Llave;

@@ -1,0 +1,49 @@
+@* =====================================================================
+   Views/Home/Index.cshtml — Portada: Informes
+   ---------------------------------------------------------------------
+   Una tarjeta por cada informe de "Informes" en appsettings.json.
+   Estilo ejecutivo (guía 4): marino y grises, tarjetas grandes en fila
+   (3 por fila; una por fila por debajo de 1.100 px). El color de marca
+   solo queda en el logotipo de cada tarjeta.
+   Lo que empieza con @ es C# (las vistas Razor siempre son C#, aunque
+   el resto del proyecto sea F#); el resto es HTML normal.
+   ===================================================================== *@
+@model IReadOnlyList<BO_Tienda.Models.InformeConfig>
+@{
+    ViewData["Title"] = "Informes";
+    ViewData["Subtitulo"] = "Tableros e informes de operación";
+    ViewData["Marca"] = "portada";
+}
+
+<div class="portada">
+    @if (Model.Count == 0)
+    {
+        <p class="vacio">Aún no hay informes. Agrégalos en <strong>appsettings.json</strong>.</p>
+    }
+    else
+    {
+        <section class="rejilla-informes">
+            @foreach (var inf in Model)
+            {
+                @* Si el informe no está habilitado se pinta «apagado» *@
+                <a class="tarjeta-informe aparece @(inf.Habilitado ? null : "bloqueada")"
+                   asp-controller="Informes" asp-action="Ver" asp-route-id="@inf.Id">
+                    <div class="tarjeta-informe-cabeza">
+                        <span class="logotipo-marca marca-@inf.Marca">@inf.Marca</span>
+                        @if (!inf.Habilitado)
+                        {
+                            <span class="candado">@Iconos.Candado Sin acceso</span>
+                        }
+                    </div>
+                    <span class="etiqueta">Informe · @inf.Fuente</span>
+                    <h2>@inf.Titulo</h2>
+                    <p>@inf.Descripcion</p>
+                    <div class="pie">
+                        <span>@inf.Pie</span>
+                        @Iconos.Flecha
+                    </div>
+                </a>
+            }
+        </section>
+    }
+</div>

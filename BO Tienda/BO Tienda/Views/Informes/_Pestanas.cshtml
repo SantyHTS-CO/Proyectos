@@ -1,0 +1,42 @@
+@* =====================================================================
+   Views/Informes/_Pestanas.cshtml — Pestañas del informe + estado
+   ---------------------------------------------------------------------
+   Guía de estilos (4 y 9.3): bajo la cabecera, una pastilla por página
+   (la activa resaltada) y, a la derecha, la fecha de los datos y el botón
+   «Actualizar» de esa pestaña. Al cambiar de pestaña se conservan los
+   filtros de la URL (los que se llaman igual en las dos se aplican).
+   ===================================================================== *@
+@model PaginaInforme
+@{
+    var filtros = Context.Request.QueryString;
+}
+
+<div class="pestanas-barra">
+    <nav class="pestanas" aria-label="Páginas del informe">
+        <a class="pestana @(Model.Activa == "tickets" ? "activa" : null)" aria-current="@(Model.Activa == "tickets" ? "page" : null)"
+           href="@(Url.Action("Ver", "Informes", new { id = Model.Config.Id }) + filtros)">Tickets</a>
+        @if (Model.Config.TieneMotivo)
+        {
+            <a class="pestana @(Model.Activa == "motivo" ? "activa" : null)" aria-current="@(Model.Activa == "motivo" ? "page" : null)"
+               href="@(Url.Action("Motivo", "Informes", new { id = Model.Config.Id }) + filtros)">Motivo</a>
+        }
+    </nav>
+
+    <div class="pestanas-vista">
+        @if (Model.Error is null)
+        {
+            <p class="estado">Datos cargados a las <strong>@Model.CargadoEn.ToString("HH:mm")</strong> en @Model.DuracionCarga.TotalSeconds.ToString("0") s · fuente @Model.Config.Fuente</p>
+        }
+        <form asp-controller="Informes" asp-action="Actualizar" asp-route-id="@Model.Config.Id" method="post" data-actualizar>
+            <input type="hidden" name="pagina" value="@Model.Activa" />
+            <input type="hidden" name="filtros" value="@filtros" />
+            <button type="submit" class="boton boton-secundario">@Iconos.Actualizar<span>Actualizar</span></button>
+        </form>
+    </div>
+</div>
+
+@* Mensaje temporal que deja «Actualizar» (TempData) *@
+@if (TempData["Ok"] is string ok)
+{
+    <div class="aviso aviso-ok aviso-informe" role="status">@Iconos.Check<p>@ok</p></div>
+}

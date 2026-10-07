@@ -1,0 +1,366 @@
+@* =====================================================================
+   Views/Informes/Tickets.cshtml — Tablero de tickets (BO Tiendas)
+   ---------------------------------------------------------------------
+   Guía de estilos SOLARIS · GAIA (4 y 5): cuerpo .tablero con el panel
+   de filtros a la izquierda (268 px) y, a la derecha, la tira de
+   indicadores, las gráficas en parejas (.rejilla-2) y las tablas.
+   Solo marcado: los cálculos están en Services/TableroTickets.fs, las
+   cifras en Infraestructura/Formato.fs y el comportamiento (filtros,
+   fichas, tablas que se ordenan, árbol) en wwwroot/js/site.js.
+   Los filtros son un <form method="get">: al cambiar uno se recarga la
+   página con los filtros en la URL y el servidor recalcula (usa caché).
+   Las listas del modelo (F#) son arrays: se usa .Length en vez de .Count.
+   ===================================================================== *@
+@model TicketsViewModel
+@{
+    ViewData["Title"] = Model.Config.Titulo;
+    ViewData["Subtitulo"] = Model.Config.Descripcion;
+    ViewData["Marca"] = Model.Config.Marca;
+    var f = Model.Filtros;
+    var porTeam = f.Vista == "team";
+    var grupo = porTeam ? "Team" : "Agente";
+}
+
+<partial name="_Pestanas" model="Model.Pagina" />
+
+@if (Model.Error is not null)
+{
+    <div class="tablero sin-panel">
+        <section class="contenido">
+            <div class="aviso aviso-error" role="alert">
+                @Iconos.Alerta
+                <p><strong>No se pudo cargar el informe.</strong><br />@Model.Error</p>
+            </div>
+        </section>
+    </div>
+}
+else
+{
+    <div class="tablero">
+
+        @* ---------------- Panel de filtros ---------------- *@
+        <form id="filtros" class="panel-filtros" method="get" asp-action="Ver" asp-route-id="@Model.Config.Id" data-filtros>
+            @* Valores que cambian los botones [data-fijar]. Lo vacío o igual
+               a data-defecto no se escribe en la URL. *@
+            <input type="hidden" name="Vista" value="@f.Vista" data-defecto="agente" />
+            <input type="hidden" name="Suscripcion" value="@f.Suscripcion" />
+            <input type="hidden" name="PeriodoGrafica" value="@f.PeriodoGrafica" data-defecto="mes" />
+            <input type="hidden" name="PeriodoTabla" value="@f.PeriodoTabla" data-defecto="dia" />
+
+            <h2 class="panel-titulo">Filtros</h2>
+
+            <div class="campo">
+                <span class="campo-nombre">Fecha</span>
+                <div class="rango-fechas">
+                    <label for="f-Desde">Desde</label>
+                    <input type="date" id="f-Desde" name="Desde" value="@f.Desde?.ToString("yyyy-MM-dd")"
+                           min="@Model.FechaMin.ToString("yyyy-MM-dd")" max="@Model.FechaMax.ToString("yyyy-MM-dd")"
+                           data-defecto="@Model.FechaMin.ToString("yyyy-MM-dd")" />
+                    <label for="f-Hasta">Hasta</label>
+                    <input type="date" id="f-Hasta" name="Hasta" value="@f.Hasta?.ToString("yyyy-MM-dd")"
+                           min="@Model.FechaMin.ToString("yyyy-MM-dd")" max="@Model.FechaMax.ToString("yyyy-MM-dd")"
+                           data-defecto="@Model.FechaMax.ToString("yyyy-MM-dd")" />
+                </div>
+            </div>
+
+            @foreach (var lista in Model.Listas)
+            {
+                <partial name="_Lista" model="lista" />
+            }
+
+            @* Convergente / Solo móvil: clic = filtrar; clic otra vez = quitar *@
+            <div class="campo">
+                <span class="campo-nombre">Suscripción</span>
+                <div class="segmento lleno" role="group" aria-label="Suscripción">
+                    @foreach (var (valor, texto) in new[] { ("CONVERGENTE", "Convergente"), ("SOLO MOVIL", "Solo móvil") })
+                    {
+                        var activo = valor == f.Suscripcion;
+                        <button type="button" class="@(activo ? "activo" : null)" aria-pressed="@(activo ? "true" : "false")"
+                                data-fijar="Suscripcion" data-valor="@(activo ? "" : valor)">@texto</button>
+                    }
+                </div>
+            </div>
+
+            @if (Model.MasListas.Length > 0)
+            {
+                <details class="mas-filtros" open="@(Model.MasFiltrosActivos > 0)">
+                    <summary>
+                        Más filtros
+                        @if (Model.MasFiltrosActivos > 0)
+                        {
+                            <span class="contador" aria-label="@Model.MasFiltrosActivos activos">@Model.MasFiltrosActivos</span>
+                        }
+                    </summary>
+                    <div class="mas-filtros-cuerpo">
+                        @foreach (var lista in Model.MasListas)
+                        {
+                            <partial name="_Lista" model="lista" />
+                        }
+                    </div>
+                </details>
+            }
+
+            <div class="panel-acciones">
+                <a class="boton boton-secundario" asp-action="Ver" asp-route-id="@Model.Config.Id" data-filtrar>Limpiar filtros</a>
+                <a class="boton" href="@(Url.Action("Descargar", new { id = Model.Config.Id }) + Context.Request.QueryString)" data-sin-carga>
+                    @Iconos.Descarga<span>Descarga general</span>
+                </a>
+            </div>
+        </form>
+
+        @* ---------------- Contenido ---------------- *@
+        <section class="contenido">
+            @if (Model.SinAgente > 0)
+            {
+                <div class="aviso aviso-info">
+                    @Iconos.Info
+                    <p>@Formato.Entero(Model.SinAgente) tickets del periodo no cruzan con la nómina (sin agente) y no se incluyen.</p>
+                </div>
+            }
+
+            @if (Model.PorGrupo.Length == 0)
+            {
+                <div class="tarjeta aparece"><p class="nota">No hay tickets con estos filtros.</p></div>
+            }
+            else
+            {
+                @* ---------------- Tira de indicadores ----------------
+                   Cada tarjeta compara con el periodo anterior de la misma
+                   duración (15 días elegidos -> los 15 días previos). *@
+                <p class="nota nota-comparacion">
+                    @if (Model.HayPeriodoAnterior)
+                    {
+                        <text>Comparado con el periodo anterior: <strong>@Model.PeriodoAnterior</strong></text>
+                    }
+                    else
+                    {
+                        <text>Sin datos del periodo anterior (@Model.PeriodoAnterior) para comparar: elige un rango de fechas más corto.</text>
+                    }
+                </p>
+
+                <div class="resumen">
+                    @foreach (var t in Model.Indicadores)
+                    {
+                        var ind = t.Indicador;
+                        <div class="resumen-dato aparece @(t.Destacada ? "destacada" : null)">
+                            <span class="dato-cabeza">
+                                <span class="dato-icono">@t.Icono</span>
+                                <span class="dato-nombre">@t.Nombre</span>
+                            </span>
+                            <strong class="dato-cifra" data-cifra="@ind.TipoCifra" data-valor="@ind.Crudo" data-clave="@t.Nombre">@ind.Valor</strong>
+                            @if (t.Detalle is not null)
+                            {
+                                <span class="dato-detalle">@t.Detalle</span>
+                            }
+                            @if (ind.Cambio is not null)
+                            {
+                                <span class="dato-cambio @ind.Tono" title="Periodo anterior: @ind.Anterior">@ind.Cambio <small>vs anterior</small></span>
+                            }
+                            else
+                            {
+                                <span class="dato-cambio neutro">sin comparación</span>
+                            }
+                        </div>
+                    }
+                </div>
+
+                @* ---------------- Gráficas (en parejas) ---------------- *@
+                <div class="rejilla-2">
+                    <section class="tarjeta crono-tarjeta aparece" id="cronologico">
+                        <div class="tarjeta-cabeza">
+                            <h2>Tickets y cierres en 1ª gestión</h2>
+                            @* Mes / Semana / Día: al pulsar, recarga y vuelve aquí (#cronologico) *@
+                            <div class="segmento" role="group" aria-label="Ver por">
+                                @foreach (var (valor, texto) in new[] { ("mes", "Mes"), ("semana", "Semana"), ("dia", "Día") })
+                                {
+                                    var activo = f.PeriodoGrafica == valor;
+                                    <button type="button" class="@(activo ? "activo" : null)" aria-pressed="@(activo ? "true" : "false")"
+                                            data-fijar="PeriodoGrafica" data-valor="@valor" data-ancla="cronologico">@texto</button>
+                                }
+                            </div>
+                        </div>
+                        <partial name="_GraficaLineas" model="Model.Cronologico" />
+                    </section>
+
+                    <section class="tarjeta aparece">
+                        <div class="tarjeta-cabeza"><h2>Tickets por estado</h2></div>
+                        <div class="hbarras">
+                            @foreach (var b in Model.PorEstado)
+                            {
+                                <div class="hbarra">
+                                    <span class="hbarra-nombre" title="@b.Nombre">@b.Nombre</span>
+                                    <span class="hbarra-pista"><span class="hbarra-relleno" style="--fraccion:@b.Fraccion"></span></span>
+                                    <span class="hbarra-cifra">@Formato.Entero(b.Valor)</span>
+                                </div>
+                            }
+                        </div>
+                    </section>
+                </div>
+
+                <div class="rejilla-2">
+                    <section class="tarjeta aparece">
+                        <div class="tarjeta-cabeza"><h2>Tiempos de cierre</h2></div>
+                        <div class="leyenda">
+                            <span class="pastilla">Tickets</span>
+                            <span class="pastilla secundaria">Primera gestión</span>
+                        </div>
+                        @if (Model.PorTramoCierre.Length == 0)
+                        {
+                            <p class="nota">Sin datos de cierre.</p>
+                        }
+                        else
+                        {
+                            <div class="hbarras">
+                                @foreach (var b in Model.PorTramoCierre)
+                                {
+                                    <div class="hbarra pareja">
+                                        <span class="hbarra-nombre">@b.Nombre</span>
+                                        <span class="hbarra-pista"><span class="hbarra-relleno" style="--fraccion:@b.FraccionTickets"></span></span>
+                                        <span class="hbarra-cifra">@Formato.Entero(b.Tickets)</span>
+                                        <span class="hbarra-pista hbarra-media"><span class="hbarra-media-relleno" style="--fraccion:@b.FraccionPrimera"></span></span>
+                                        <span class="hbarra-cifra secundaria">@Formato.Entero(b.PrimeraGestion)</span>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </section>
+
+                    <section class="tarjeta aparece">
+                        <div class="tarjeta-cabeza"><h2>Cierre en primera gestión por tipo</h2></div>
+                        <div class="hbarras secundaria">
+                            @foreach (var b in Model.PrimeraGestionPorTipo)
+                            {
+                                <div class="hbarra">
+                                    <span class="hbarra-nombre" title="@b.Nombre">@b.Nombre</span>
+                                    <span class="hbarra-pista"><span class="hbarra-relleno" style="--fraccion:@b.Fraccion"></span></span>
+                                    <span class="hbarra-cifra">@Formato.Porcentaje(b.Porcentaje)</span>
+                                </div>
+                            }
+                        </div>
+                    </section>
+                </div>
+
+                @* ---------------- Tickets por agente / team ----------------
+                   Pulsar un encabezado ordena la tabla (site.js). *@
+                <section class="tarjeta aparece" id="por-grupo">
+                    <div class="tarjeta-cabeza">
+                        <h2>Tickets por @grupo.ToLower()</h2>
+                        <div class="segmento" role="group" aria-label="Agrupar por">
+                            <button type="button" class="@(porTeam ? "activo" : null)" aria-pressed="@(porTeam ? "true" : "false")"
+                                    data-fijar="Vista" data-valor="team" data-ancla="por-grupo">Team</button>
+                            <button type="button" class="@(porTeam ? null : "activo")" aria-pressed="@(porTeam ? "false" : "true")"
+                                    data-fijar="Vista" data-valor="agente" data-ancla="por-grupo">Agente</button>
+                        </div>
+                    </div>
+                    <div class="tabla-scroll">
+                        <table class="ranking">
+                            <thead>
+                                <tr>
+                                    <th class="izq" scope="col" data-orden="texto">@grupo</th>
+                                    @foreach (var c in Model.Columnas)
+                                    {
+                                        <th scope="col" data-orden="numero">@c</th>
+                                    }
+                                    <th scope="col" data-orden="numero">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var fila in Model.PorGrupo)
+                                {
+                                    <tr>
+                                        <td class="izq nombre">@fila.Nombre</td>
+                                        @foreach (var c in Model.Columnas)
+                                        {
+                                            <td data-valor="@fila.Cantidad(c)">@Formato.Celda(fila.Cantidad(c))</td>
+                                        }
+                                        <td class="total" data-valor="@fila.Total">@Formato.Entero(fila.Total)</td>
+                                    </tr>
+                                }
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <td class="izq">Total</td>
+                                    @foreach (var c in Model.Columnas)
+                                    {
+                                        <td>@Formato.Celda(Model.Total.Cantidad(c))</td>
+                                    }
+                                    <td>@Formato.Entero(Model.Total.Total)</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </section>
+
+                @* ---------------- Estado de tickets (árbol desplegable) ---------------- *@
+                <section class="tarjeta aparece" id="estado-tickets">
+                    <div class="tarjeta-cabeza">
+                        <h2>Estado de tickets</h2>
+                        @* Día / Semana / Mes: al pulsar, recarga y vuelve aquí (#estado-tickets) *@
+                        <div class="segmento" role="group" aria-label="Agrupar por periodo">
+                            @foreach (var (valor, texto) in new[] { ("dia", "Día"), ("semana", "Semana"), ("mes", "Mes") })
+                            {
+                                var activo = f.PeriodoTabla == valor;
+                                <button type="button" class="@(activo ? "activo" : null)" aria-pressed="@(activo ? "true" : "false")"
+                                        data-fijar="PeriodoTabla" data-valor="@valor" data-ancla="estado-tickets">@texto</button>
+                            }
+                        </div>
+                    </div>
+                    @* «alta»: altura máxima con scroll; encabezado y total quedan fijos *@
+                    <div class="tabla-scroll alta">
+                        <table class="arbol">
+                            <thead>
+                                <tr>
+                                    <th class="izq" scope="col">@(f.PeriodoTabla switch { "semana" => "Semana", "mes" => "Mes", _ => "Mes / día" })</th>
+                                    @foreach (var c in Model.Columnas)
+                                    {
+                                        <th scope="col">@c</th>
+                                    }
+                                    <th scope="col">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (int i = 0; i < Model.PorPeriodo.Length; i++)
+                                {
+                                    var periodo = Model.PorPeriodo[i];
+                                    <tr class="padre">
+                                        <td class="izq">
+                                            <button type="button" class="desplegar" data-desplegar="@i" aria-expanded="false"
+                                                    aria-label="Ver @periodo.Nombre por @grupo.ToLower()">@Iconos.Flecha</button>
+                                            @periodo.Nombre
+                                        </td>
+                                        @foreach (var c in Model.Columnas)
+                                        {
+                                            <td>@Formato.Celda(periodo.Cantidad(c))</td>
+                                        }
+                                        <td class="total">@Formato.Entero(periodo.Total)</td>
+                                    </tr>
+                                    @foreach (var hijo in periodo.Hijos)
+                                    {
+                                        <tr class="hija" data-padre="@i" hidden>
+                                            <td class="izq">@hijo.Nombre</td>
+                                            @foreach (var c in Model.Columnas)
+                                            {
+                                                <td>@Formato.Celda(hijo.Cantidad(c))</td>
+                                            }
+                                            <td>@Formato.Entero(hijo.Total)</td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <td class="izq">Total</td>
+                                    @foreach (var c in Model.Columnas)
+                                    {
+                                        <td>@Formato.Celda(Model.Total.Cantidad(c))</td>
+                                    }
+                                    <td>@Formato.Entero(Model.Total.Total)</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </section>
+            }
+        </section>
+    </div>
+}

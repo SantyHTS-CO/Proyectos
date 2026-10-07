@@ -1,0 +1,74 @@
+@* =====================================================================
+   Views/Shared/_Layout.cshtml — Plantilla común
+   ---------------------------------------------------------------------
+   Guía de estilos SOLARIS · GAIA (4): cabecera pegajosa de 72 px con una
+   línea de 3 px del color de marca. A la izquierda el logotipo (vuelve a
+   la portada), en el centro el título con su subtítulo y a la derecha el
+   botón de tema y el usuario.
+   Cada vista pone ViewData["Title"], ["Subtitulo"] y ["Marca"]
+   (yoigo | orange; portada = marino y grises).
+   Sin fuentes ni librerías externas: la letra es la de Windows.
+   ===================================================================== *@
+@{
+    var marca = ViewData["Marca"] as string ?? "portada";
+}
+<!DOCTYPE html>
+<html lang="es" data-marca="@marca">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] · Informes BI</title>
+    @* Antes del CSS: pone el tema (claro/oscuro) sin que la página parpadee *@
+    <script src="~/js/tema.js" asp-append-version="true"></script>
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+    <header class="cabecera">
+        <a class="cabecera-logo" asp-controller="Home" asp-action="Index" title="Volver a Informes">
+            @if (marca == "portada")
+            {
+                @Iconos.Logotipo
+                <span class="logotipo-texto">Informes BI</span>
+            }
+            else
+            {
+                <span class="logotipo-marca marca-@marca">@marca</span>
+            }
+        </a>
+
+        <div class="cabecera-titulo">
+            <h1>@ViewData["Title"]</h1>
+            @if (ViewData["Subtitulo"] is string subtitulo)
+            {
+                <p>@subtitulo</p>
+            }
+        </div>
+
+        <div class="cabecera-acciones">
+            <button type="button" class="boton-icono boton-tema" data-cambiar-tema aria-label="Cambiar el tema">
+                <span class="tema-auto">@Iconos.TemaAuto</span>
+                <span class="tema-claro">@Iconos.Sol</span>
+                <span class="tema-oscuro">@Iconos.Luna</span>
+            </button>
+            @* User.Identity se llena cuando actives autenticación (ver README) *@
+            <span class="usuario">@(User.Identity?.Name ?? "Invitado")</span>
+        </div>
+    </header>
+
+    <main class="pagina">
+        @* Mensaje temporal que viene de un Redirect (TempData). El de
+           «Actualizar» lo pinta cada informe bajo sus pestañas (_Pestanas). *@
+        @if (TempData["Aviso"] is string aviso)
+        {
+            <div class="aviso" role="status">
+                @Iconos.Candado
+                <p><strong>Debes solicitar acceso con tu administrador.</strong><br />@aviso</p>
+            </div>
+        }
+
+        @RenderBody()
+    </main>
+
+    <script src="~/js/site.js" asp-append-version="true"></script>
+</body>
+</html>

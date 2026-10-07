@@ -1,0 +1,61 @@
+@* =====================================================================
+   Views/Shared/_Ranking.cshtml — Tabla de ranking (guía de estilos 5)
+   ---------------------------------------------------------------------
+   table.ranking[data-mapa]: site.js ordena al pulsar un encabezado,
+   pinta el semáforo pastel según th[data-sentido] (1 más es mejor, −1
+   más es peor, 0 sin color), la intensidad del acento en th[data-calor="si"]
+   y pagina de 10 en 10. Las filas .pocas (menos de 20 llamadas) van
+   al final y en gris; la fila de totales, sin color.
+   ===================================================================== *@
+@model Ranking
+
+<div class="tabla-scroll">
+    <table class="ranking" data-mapa data-paginar="10">
+        <thead>
+            <tr>
+                <th class="izq" scope="col" data-orden="texto">@Model.Agrupacion</th>
+                @foreach (var c in Model.Columnas)
+                {
+                    @* Ojo: Razor siempre escribe los data-*, aunque valgan null: por eso calor = si | no *@
+                    <th scope="col" data-orden="@c.Orden" data-sentido="@c.Sentido" data-calor="@(c.Calor ? "si" : "no")">@c.Titulo</th>
+                }
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var fila in Model.Filas)
+            {
+                <tr class="@(fila.Pocas ? "pocas" : null)" title="@(fila.Pocas ? "Menos de 20 llamadas: va al final y sin color" : null)">
+                    <td class="izq nombre">
+                        @fila.Nombre
+                        @if (fila.Detalle is not null)
+                        {
+                            <span class="sub">@fila.Detalle</span>
+                        }
+                    </td>
+                    @foreach (var celda in fila.Celdas)
+                    {
+                        <td data-valor="@celda.Valor">
+                            @if (celda.Clase is null)
+                            {
+                                @celda.Texto
+                            }
+                            else
+                            {
+                                <span class="chip @celda.Clase">@celda.Texto</span>
+                            }
+                        </td>
+                    }
+                </tr>
+            }
+        </tbody>
+        <tfoot>
+            <tr>
+                <td class="izq">Total</td>
+                @foreach (var celda in Model.Total)
+                {
+                    <td>@celda.Texto</td>
+                }
+            </tr>
+        </tfoot>
+    </table>
+</div>
