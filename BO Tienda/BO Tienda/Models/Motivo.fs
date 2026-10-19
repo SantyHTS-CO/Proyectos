@@ -27,6 +27,9 @@ type FiltrosMotivo() =
     member val TipoMotivo: string = null with get, set    // Mismo motivo | Diferente motivo | vacío = los dos
     member val Ver = "motivo2" with get, set              // motivo2 | motivo3 | agente | team (filas del ranking)
     member val PeriodoMotivo = "semana" with get, set     // semana | mes | dia (gráfica por tiempo)
+    // Lo que se elige al pulsar la gráfica por tiempo (las filas del ranking fijan
+    // Motivo2, Motivo3, Agente o Team, que también son listas del panel)
+    member val PeriodoLlamadas = Nullable<DateOnly>() with get, set   // primer día del punto elegido
 
 /// Una columna del ranking. Orden = numero | texto (site.js ordena al pulsar).
 /// Sentido (guía 5): "1" más es mejor, "-1" más es peor (semáforo pastel),
@@ -44,19 +47,23 @@ type CeldaRanking =
       Clase: string }       // null = texto normal; si no, va en una pastilla con esa clase
 
 /// Una fila del ranking. Pocas = menos de 20 llamadas: va al final y en gris.
+/// Al pulsarla se filtra por su Clave (null = «(sin dato)», no se puede filtrar).
 type FilaRanking =
     { Nombre: string
       Detalle: string       // texto pequeño bajo el nombre (null = sin detalle)
       Celdas: CeldaRanking[]
-      Pocas: bool }
+      Pocas: bool
+      Clave: string
+      Elegida: bool }
 
 type Ranking =
     { Agrupacion: string    // encabezado de la primera columna
+      Filtro: string        // parámetro de la URL que fija una fila (Motivo2 | Motivo3 | Agente | Team)
       Columnas: ColumnaRanking[]
       Filas: FilaRanking[]
       Total: CeldaRanking[] }
 
-    static member Vacio = { Agrupacion = ""; Columnas = [||]; Filas = [||]; Total = [||] }
+    static member Vacio = { Agrupacion = ""; Filtro = ""; Columnas = [||]; Filas = [||]; Total = [||] }
 
 /// Todo lo que necesita Views/Informes/Motivo.cshtml.
 type MotivoViewModel =
@@ -71,6 +78,7 @@ type MotivoViewModel =
       Listas: FiltroLista[]
       MasListas: FiltroLista[]
       MasFiltrosActivos: int
+      Selecciones: Seleccion[]            // lo elegido al pulsar la gráfica o el ranking (etiquetas que se quitan)
 
       HayDatos: bool
       SinAgente: int                      // llamadas de tickets que no cruzan con la nómina
@@ -103,6 +111,7 @@ type MotivoViewModel =
           Listas = [||]
           MasListas = [||]
           MasFiltrosActivos = 0
+          Selecciones = [||]
           HayDatos = false
           SinAgente = 0
           VentanaAbierta = false

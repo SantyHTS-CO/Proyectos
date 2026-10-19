@@ -39,6 +39,8 @@ else
             <input type="hidden" name="Ver" value="@f.Ver" data-defecto="motivo2" />
             <input type="hidden" name="TipoMotivo" value="@f.TipoMotivo" />
             <input type="hidden" name="PeriodoMotivo" value="@f.PeriodoMotivo" data-defecto="semana" />
+            @* Punto elegido al pulsar la gráfica por tiempo (las filas del ranking fijan listas del panel) *@
+            <input type="hidden" name="PeriodoLlamadas" value="@f.PeriodoLlamadas?.ToString("yyyy-MM-dd")" />
 
             <h2 class="panel-titulo">Filtros</h2>
 
@@ -118,6 +120,9 @@ else
                 </div>
             }
 
+            @* Lo elegido al pulsar la gráfica o el ranking; también sin llamadas, para poder quitarlo *@
+            <partial name="_Selecciones" model="Model.Selecciones" />
+
             @if (!Model.HayDatos)
             {
                 <div class="tarjeta aparece"><p class="nota">No hay llamadas con estos filtros.</p></div>
@@ -163,7 +168,8 @@ else
                 </div>
 
                 @* ---------------- Ranking ----------------
-                   «Ver por» cambia las filas; pulsar un encabezado ordena. *@
+                   «Ver por» cambia las filas; pulsar un encabezado ordena; pulsar
+                   una fila filtra el informe por ella (otra vez, la quita). *@
                 <section class="tarjeta aparece" id="ranking">
                     <div class="tarjeta-cabeza">
                         <h2>Ranking</h2>
@@ -188,7 +194,7 @@ else
                             {
                                 var activo = f.PeriodoMotivo == valor;
                                 <button type="button" class="@(activo ? "activo" : null)" aria-pressed="@(activo ? "true" : "false")"
-                                        data-fijar="PeriodoMotivo" data-valor="@valor" data-ancla="motivos">@texto</button>
+                                        data-fijar="PeriodoMotivo" data-valor="@valor" data-ancla="motivos" data-limpiar="PeriodoLlamadas">@texto</button>
                             }
                         </div>
                     </div>

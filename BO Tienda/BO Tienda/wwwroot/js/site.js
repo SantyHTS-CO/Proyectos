@@ -3,11 +3,13 @@
 // ---------------------------------------------------------------------
 // Las vistas solo llevan marcado: todo el JavaScript vive aquí.
 //   1. Barra de carga arriba al navegar o aplicar filtros
-//   2. Filtros: cada cambio envía el formulario; botones [data-fijar]
+//   2. Filtros: cada cambio envía el formulario; [data-fijar] = botones,
+//      barras, filas del ranking y etiquetas que fijan (o quitan) un filtro
 //   3. «Actualizar»: «Actualizando…» mientras BigQuery responde
 //   4. Árbol desplegable (Estado de tickets)
 //   5. Tablas que se ordenan (table.ranking)
-//   6. Fichas al pasar el ratón por las gráficas, con guía vertical
+//   6. Fichas al pasar el ratón por las gráficas, con guía vertical; clic
+//      en un punto = filtrar por ese periodo
 //   7. Aparición escalonada de tarjetas y cifras que cuentan
 // Con «reducir movimiento» no se anima nada.
 // =====================================================================
@@ -86,14 +88,44 @@
         filtros.addEventListener('submit', function () { prepararEnvio(filtros); });
     }
 
-    // Botones que fijan un valor del formulario (Team / Agente, Suscripción,
-    // Día / Semana / Mes). data-ancla = bloque al que volver tras recargar.
+    // Fija un valor del formulario y recarga: lo usan los botones (Team / Agente,
+    // Suscripción, Día / Semana / Mes), las barras, las filas del ranking, los
+    // puntos de las gráficas y las etiquetas de filtros elegidos.
+    //   ancla    = bloque al que volver tras recargar
+    //   limpiar  = otros campos que se vacían a la vez (nombres separados por espacio)
+    // Un valor vacío quita el filtro. Si el campo no está en el panel (una lista
+    // con una sola opción no se pinta) se crea oculto.
+    function fijar(nombre, valor, ancla, limpiar) {
+        if (!filtros || !nombre) return;
+        var campo = filtros.elements[nombre];
+        if (!campo) {
+            campo = document.createElement('input');
+            campo.type = 'hidden';
+            campo.name = nombre;
+            filtros.appendChild(campo);
+        }
+        campo.value = valor || '';
+        if (limpiar) {
+            limpiar.split(' ').forEach(function (otro) {
+                if (filtros.elements[otro]) filtros.elements[otro].value = '';
+            });
+        }
+        if (ancla) filtros.action = filtros.action.split('#')[0] + '#' + ancla;
+        enviar(filtros);
+    }
+
     document.addEventListener('click', function (e) {
         var boton = e.target.closest('[data-fijar]');
-        if (!boton || !filtros) return;
-        filtros.elements[boton.dataset.fijar].value = boton.dataset.valor;
-        if (boton.dataset.ancla) filtros.action = filtros.action.split('#')[0] + '#' + boton.dataset.ancla;
-        enviar(filtros);
+        if (!boton || boton.disabled) return;
+        fijar(boton.dataset.fijar, boton.dataset.valor, boton.dataset.ancla, boton.dataset.limpiar);
+    });
+
+    // Las filas del ranking que filtran se alcanzan con el teclado
+    document.addEventListener('keydown', function (e) {
+        if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('tr.elegible')) {
+            e.preventDefault();
+            e.target.click();
+        }
     });
 
     // Al volver con «Atrás» la página puede salir de la caché del navegador
@@ -182,7 +214,11 @@
         if (!porPagina) return null;
 
         var cuerpo = tabla.tBodies[0];
-        var pagina = 0;
+        // Empieza en la página de la fila elegida (si la hay), para que se vea
+        var primeraElegida = Array.prototype.findIndex.call(cuerpo.rows, function (fila) {
+            return fila.classList.contains('elegida');
+        });
+        var pagina = primeraElegida > 0 ? Math.floor(primeraElegida / porPagina) : 0;
         var barra = document.createElement('div');
         var texto = document.createElement('span');
         var anterior = document.createElement('button');
@@ -261,6 +297,9 @@
     // 6. Fichas en las gráficas por tiempo: el <title> de cada punto
     //    («Etiqueta · Serie valor · …») se pinta como ficha junto al punto
     //    más cercano al ratón, con una guía vertical; los demás se desvanecen.
+    //    Si la gráfica filtra (data-elegir = parámetro de la URL), pulsar cerca
+    //    de un punto elige ese periodo; si ya es el elegido, lo quita. El
+    //    elegido (.elegida) queda marcado con una guía fija.
     // ------------------------------------------------------------------
     document.querySelectorAll('[data-crono]').forEach(function (lienzo) {
         var marcas = Array.prototype.slice.call(lienzo.querySelectorAll('.marca-x'));
@@ -319,16 +358,48 @@
             guia.hidden = ficha.hidden = true;
         }
 
-        lienzo.addEventListener('pointermove', function (e) {
+        // El punto más cercano al ratón (x en % del ancho)
+        function cercanaA(e) {
             var caja = lienzo.getBoundingClientRect();
             var x = (e.clientX - caja.left) / caja.width * 100;
             var cercana = 0;
             posiciones.forEach(function (p, i) {
                 if (Math.abs(p - x) < Math.abs(posiciones[cercana] - x)) cercana = i;
             });
-            mostrar(cercana);
-        });
+            return cercana;
+        }
+
+        lienzo.addEventListener('pointermove', function (e) { mostrar(cercanaA(e)); });
         lienzo.addEventListener('pointerleave', ocultar);
+
+        var parametro = lienzo.dataset.elegir;
+        if (!parametro) return;
+
+        function elegir(i) {
+            var marca = marcas[i];
+            var tarjeta = lienzo.closest('[id]');
+            fijar(parametro, marca.classList.contains('elegida') ? '' : marca.dataset.valor, tarjeta ? tarjeta.id : null);
+        }
+
+        lienzo.classList.add('elegible');
+        lienzo.addEventListener('click', function (e) { elegir(cercanaA(e)); });
+        marcas.forEach(function (marca, i) {
+            marca.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    elegir(i);
+                }
+            });
+        });
+
+        var elegida = marcas.filter(function (marca) { return marca.classList.contains('elegida'); })[0];
+        if (elegida) {
+            var fija = document.createElement('div');
+            fija.className = 'guia fija';
+            fija.style.left = elegida.dataset.x + '%';
+            lienzo.appendChild(fija);
+            lienzo.classList.add('con-seleccion');
+        }
     });
 
     // ------------------------------------------------------------------

@@ -34,6 +34,10 @@ type FiltrosTickets() =
     member val Vista = "agente" with get, set             // agente | team  (botones Team / Agente)
     member val PeriodoGrafica = "mes" with get, set       // mes | semana | dia  (gráfica por tiempo)
     member val PeriodoTabla = "dia" with get, set         // dia | semana | mes  (tabla Estado de tickets)
+    // Lo que se elige al pulsar las gráficas (Estado, arriba, también es una lista del panel)
+    member val Periodo = Nullable<DateOnly>() with get, set   // primer día del punto elegido en la gráfica por tiempo
+    member val Tramo: string = null with get, set             // barra elegida en «Tiempos de cierre»
+    member val TipoTicket: string = null with get, set        // barra elegida en «Cierre en primera gestión por tipo» (se llama igual en Motivo)
 
 /// Una lista desplegable del panel: su nombre en la URL, el texto que se
 /// muestra, las opciones disponibles y la que está elegida (null = Todas).
@@ -42,6 +46,12 @@ type FiltroLista =
       Etiqueta: string
       Opciones: string[]
       Elegido: string }
+
+/// Algo elegido al pulsar una gráfica, para mostrarlo como etiqueta que se
+/// quita con un clic: el parámetro de la URL y el texto («Estado: ANULADO»).
+type Seleccion =
+    { Clave: string
+      Texto: string }
 
 /// Una fila de las matrices: nombre (agente, team o día) + cuántos tickets
 /// hay de cada tipo. Hijos = el desglose al pulsar el botón (solo por día).
@@ -58,12 +68,18 @@ type FilaMatriz =
         | true, n -> n
         | _ -> 0
 
+/// Las barras son botones: al pulsar una se filtra el informe por su Clave
+/// (el valor que filtra; null = no se puede filtrar) y, si ya es la elegida,
+/// se quita el filtro.
+
 /// Una barra horizontal: etiqueta + cantidad. Fraccion = largo de la barra
 /// frente a la mayor (0–1), ya escrito para CSS ("0.53").
 type Barra =
     { Nombre: string
       Valor: int
-      Fraccion: string }
+      Fraccion: string
+      Clave: string
+      Elegida: bool }
 
 /// Dos barras por etiqueta (tickets vs resueltos en 1ª gestión), las dos
 /// a la escala de la mayor cantidad de tickets.
@@ -72,13 +88,17 @@ type BarraDoble =
       Tickets: int
       PrimeraGestion: int
       FraccionTickets: string
-      FraccionPrimera: string }
+      FraccionPrimera: string
+      Clave: string
+      Elegida: bool }
 
 /// Una barra en porcentaje (0..1).
 type BarraPct =
     { Nombre: string
       Porcentaje: float
-      Fraccion: string }
+      Fraccion: string
+      Clave: string
+      Elegida: bool }
 
 /// Una línea horizontal de referencia de la gráfica (solo con escala de %).
 type LineaRejilla =
@@ -95,7 +115,9 @@ type PuntoCrono =
       YDatoPrincipal: string
       DatoSecundaria: string
       YDatoSecundaria: string
-      Eje: string }         // etiqueta del eje; null = no se escribe (pisaría a otra)
+      Eje: string           // etiqueta del eje; null = no se escribe (pisaría a otra)
+      Valor: string         // primer día del periodo ("2026-09-01"): lo que filtra al pulsar el punto
+      Elegido: bool }       // es el periodo que se eligió
 
 /// La gráfica por tiempo lista para pintar (Views/Shared/_GraficaLineas).
 /// La calcula Infraestructura/Graficas.fs.
@@ -111,13 +133,14 @@ type GraficaCrono =
       Radio: string
       EscalaPropia: bool    // true = cada línea a su máximo; false = las dos en la misma escala de %
       ConNumeros: bool      // false = demasiados puntos: las cifras quedan en la ficha
+      Elegir: string        // parámetro de la URL que fija el clic en un punto; null = la gráfica no filtra
       Rejilla: LineaRejilla[]
       Puntos: PuntoCrono[] }
 
     static member Vacia =
         { Alto = "0"; YEje = "0"; NombrePrincipal = ""; NombreSecundaria = ""
           AreaPrincipal = ""; LineaPrincipal = ""; AreaSecundaria = ""; LineaSecundaria = ""
-          Radio = "4"; EscalaPropia = true; ConNumeros = false; Rejilla = [||]; Puntos = [||] }
+          Radio = "4"; EscalaPropia = true; ConNumeros = false; Elegir = null; Rejilla = [||]; Puntos = [||] }
 
 /// Lo que necesitan las pestañas de un informe (Views/Informes/_Pestanas):
 /// qué pestaña está activa y el estado de sus datos.
@@ -160,6 +183,7 @@ type TicketsViewModel =
       Listas: FiltroLista[]               // siempre a la vista
       MasListas: FiltroLista[]            // dentro de «Más filtros»
       MasFiltrosActivos: int              // el contador de «Más filtros»
+      Selecciones: Seleccion[]            // lo elegido al pulsar las gráficas (etiquetas que se quitan)
 
       Columnas: string[]                  // tipos de ticket (encabezados)
       PorGrupo: FilaMatriz[]
@@ -202,6 +226,7 @@ type TicketsViewModel =
           Listas = [||]
           MasListas = [||]
           MasFiltrosActivos = 0
+          Selecciones = [||]
           Columnas = [||]
           PorGrupo = [||]
           PorPeriodo = [||]

@@ -15,6 +15,30 @@ resultados, con el aspecto de la **guía de estilos SOLARIS · GAIA**
 | **Tickets** | `/Informes/Ver/bo-tiendas` | Tickets por agente/team y por día, FIR, 7 tarjetas (FIR, fuera de 1ª gestión, abiertos, tiempo abierto y los tiempos de resolución, creación → asignación y asignación → cierre) y gráficas. «Asignado» = `fecha_primer_cambio_estado` (cuando alguien toma el ticket) |
 | **Motivo** | `/Informes/Motivo/bo-tiendas` | Llamadas de la línea del ticket en los 3 días siguientes y su motivo: 5 tarjetas (tickets, tickets que volvieron a llamar, llamadas de esos tickets, % mismo motivo, % diferente motivo), ranking por motivo, agente o team y el tipo de motivo en el tiempo |
 
+## Gráficas interactivas
+
+Pulsar un **punto de la gráfica por tiempo**, una **barra** o una **fila del
+ranking** filtra todo el informe; pulsarlo otra vez quita el filtro. Lo elegido
+sale resaltado (lo demás de esa gráfica se atenúa) y como etiquetas «Filtrando
+por» que se quitan con un clic. Cada gráfica sigue mostrando todas sus opciones
+(no se filtra a sí misma), como los segmentadores de Power BI.
+
+| Pestaña | Qué filtra al pulsar | Parámetro de la URL |
+|---|---|---|
+| Tickets | punto de la gráfica por tiempo (mes, semana o día) | `Periodo` (primer día) |
+| Tickets | barra de «Tickets por estado» | `Estado` |
+| Tickets | barra de «Tiempos de cierre» | `Tramo` |
+| Tickets | barra de «Cierre en primera gestión por tipo» | `TipoTicket` (se comparte con Motivo) |
+| Motivo | punto de «Tipo de motivo en el tiempo» | `PeriodoLlamadas` (primer día) |
+| Motivo | fila del ranking (Motivo 2, Motivo 3, Agente o Team) | `Motivo2`, `Motivo3`, `Agente`, `Team` |
+
+Un periodo elegido recorta el rango de fechas del panel (las tarjetas se
+comparan con los mismos días justo antes); al cambiar Mes / Semana / Día se
+olvida. Todo viaja en la URL, así que un enlace con filtros se puede compartir,
+y «Descarga general» exporta lo filtrado. El código está en
+`Services/TableroTickets.fs` / `TableroMotivo.fs` (`sinSeleccion`),
+`Views/Informes/_Selecciones.cshtml` y `wwwroot/js/site.js` (`fijar`).
+
 Cada pestaña tiene su consulta, su caché y su botón «Actualizar». Al pasar de
 una a otra se conservan los filtros comunes (fechas, supervisor, team, agente,
 marca). «Motivo» cruza cada llamada con la pestaña Tickets por `id_ticket`
@@ -41,7 +65,7 @@ Navegador ──► HomeController (portada "Informes")
 | La consulta de tickets | `Consultas/bo_tiendas.bqsql` (pulsa **Actualizar** en la página; no hace falta reiniciar) |
 | La consulta de motivo | `Consultas/bo_tiendas_motivo.bqsql` (`appsettings.json` › `ConsultaMotivo`) |
 | Cálculos de la pestaña Motivo (las 5 tarjetas, ranking, gráfica) | `Services/TableroMotivo.fs` |
-| La tabla de ranking (semáforo, calor, paginación) | `Views/Shared/_Ranking.cshtml` + `wwwroot/js/site.js` |
+| La tabla de ranking (semáforo, calor, paginación, filas que filtran) | `Views/Shared/_Ranking.cshtml` + `wwwroot/js/site.js` |
 | Título, descripción o marca de la tarjeta | `appsettings.json` › `Informes` (`"Marca"`: `yoigo` u `orange`) |
 | La conexión (DSN) | `appsettings.json` › `ConnectionStrings:BigQueryOdbc` |
 | Qué columna usa cada filtro, cálculos | `Services/TableroTickets.fs` (bloque «Columnas que usa el tablero») |

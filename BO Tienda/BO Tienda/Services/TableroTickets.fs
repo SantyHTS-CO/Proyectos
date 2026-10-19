@@ -190,17 +190,31 @@ let private armar (vm: TicketsViewModel) (f: FiltrosTickets) (todos: Ticket list
     if f.Vista <> "team" then f.Vista <- "agente"
     f.PeriodoGrafica <- periodoValido "mes" f.PeriodoGrafica
     f.PeriodoTabla <- periodoValido "dia" f.PeriodoTabla
-    let desde, hasta = f.Desde.Value, f.Hasta.Value
+    let desdePanel, hastaPanel = f.Desde.Value, f.Hasta.Value
 
-    // 1) Filtros fijos: fechas y tipo de suscripción
+    // El punto que se pulsó en la gráfica por tiempo recorta el rango del panel
+    // (si ya no vale, se olvida)
+    let rangoPeriodo = rangoDelPeriodo f.Periodo f.PeriodoGrafica desdePanel hastaPanel
+    if rangoPeriodo.IsNone then f.Periodo <- Nullable()
+    let desde, hasta = rangoPeriodo |> Option.defaultValue (desdePanel, hastaPanel)
+
+    // 1) Filtros fijos: fechas, tipo de suscripción y lo elegido en las barras
     let cumpleSuscripcion (t: Ticket) = String.IsNullOrEmpty f.Suscripcion || t.Suscripcion = f.Suscripcion
+
+    // «excepto» deja fuera la selección de la gráfica que se está pintando
+    // ("Tramo", "TipoTicket"): así cada gráfica sigue mostrando todas sus
+    // opciones y se puede cambiar de una a otra con un clic.
+    let cumpleBarras excepto (t: Ticket) =
+        (excepto = "Tramo" || String.IsNullOrEmpty f.Tramo || t.TramoCierre = f.Tramo)
+        && (excepto = "TipoTicket" || String.IsNullOrEmpty f.TipoTicket || t.Tipo = f.TipoTicket)
+
+    let candidatos excepto =
+        let a, b = if excepto = "Periodo" then desdePanel, hastaPanel else desde, hasta
+        todos |> List.filter (fun t -> enRango a b t.Fecha && cumpleSuscripcion t && cumpleBarras excepto t)
 
     // Como en el Power BI, solo cuentan los tickets que cruzaron con la
     // nómina (tienen agente). Los demás se informan aparte.
-    let baseTickets, sinAgente =
-        todos
-        |> List.filter (fun t -> enRango desde hasta t.Fecha && cumpleSuscripcion t)
-        |> List.partition (fun t -> t.Agente <> "")
+    let baseTickets, sinAgente = candidatos "" |> List.partition (fun t -> t.Agente <> "")
 
     // 2) Listas desplegables. Lo de siempre a la vista; el resto, en «Más filtros».
     let dims =
@@ -215,6 +229,17 @@ let private armar (vm: TicketsViewModel) (f: FiltrosTickets) (todos: Ticket list
     let listas = panel dims baseTickets
     let filtrados = baseTickets |> List.filter (cumple dims)
 
+    // Lo que ve cada gráfica que filtra: todo menos su propia selección
+    // ("Periodo", "Tramo", "TipoTicket" o "Estado", que además es una lista del panel)
+    let sinSeleccion excepto =
+        candidatos excepto
+        |> List.filter (fun t -> t.Agente <> "" && dims |> List.forall (fun d -> d.Clave = excepto || d.Cumple t))
+
+    let paraCronologico = sinSeleccion "Periodo"
+    let paraEstado = sinSeleccion "Estado"
+    let paraTramo = sinSeleccion "Tramo"
+    let paraTipo = sinSeleccion "TipoTicket"
+
     // 3) Matrices
     let grupo: Ticket -> string = if f.Vista = "team" then _.Team else _.Agente
 
@@ -225,8 +250,10 @@ let private armar (vm: TicketsViewModel) (f: FiltrosTickets) (todos: Ticket list
         |> List.map (fun (nombre, g) -> fila nombre g)
         |> Array.ofList
 
-    // Estado de tickets: una fila por día, semana o mes (lo más reciente arriba)
-    let variosAnios = (filtrados |> List.map _.Fecha.Year |> List.distinct |> List.length) > 1
+    // Estado de tickets: una fila por día, semana o mes (lo más reciente arriba).
+    // Los años se miran en la gráfica por tiempo (que siempre muestra todo el
+    // rango) para que las etiquetas no cambien al elegir un punto.
+    let variosAnios = (paraCronologico |> List.map _.Fecha.Year |> List.distinct |> List.length) > 1
 
     let porPeriodo =
         filtrados
@@ -242,7 +269,7 @@ let private armar (vm: TicketsViewModel) (f: FiltrosTickets) (todos: Ticket list
     let anteriores =
         todos
         |> List.filter (fun t ->
-            enRango antDesde antHasta t.Fecha && cumpleSuscripcion t && t.Agente <> "" && cumple dims t)
+            enRango antDesde antHasta t.Fecha && cumpleSuscripcion t && cumpleBarras "" t && t.Agente <> "" && cumple dims t)
 
     let act = medir filtrados
     let ant = if List.isEmpty anteriores then None else Some(medir anteriores)
@@ -271,43 +298,53 @@ let private armar (vm: TicketsViewModel) (f: FiltrosTickets) (todos: Ticket list
            tarjeta "Tiempo de asignación a cierre" Iconos.Bandera "Desde que se asignó hasta el cierre"
                (comparar act.HorasACierre (delAnterior _.HorasACierre) CifraDuracion Menos false) |]
 
-    // 5) Gráficas
+    // 5) Gráficas. Todas filtran al pulsarlas: cada una muestra lo filtrado
+    // por lo demás (sinSeleccion) y resalta lo que se eligió en ella.
     let cronologico =
-        filtrados
+        paraCronologico
         |> List.groupBy (fun t -> inicioPeriodo t.Fecha f.PeriodoGrafica)
         |> List.sortBy fst
         |> Array.ofList
 
     let graficaTiempo =
         Graficas.lineas
+            "Periodo"
+            (if rangoPeriodo.IsSome then fechaIso f.Periodo.Value else null)
             (cronologico
              |> Array.map (fun (inicio, _) ->
-                 etiquetaCorta inicio f.PeriodoGrafica variosAnios, etiquetaLarga inicio f.PeriodoGrafica variosAnios))
+                 etiquetaCorta inicio f.PeriodoGrafica variosAnios,
+                 etiquetaLarga inicio f.PeriodoGrafica variosAnios,
+                 fechaIso inicio))
             (Graficas.serie "Tickets" (cronologico |> Array.map (fun (_, g) -> float g.Length)) Formato.Numero)
             (Graficas.serie "Primera gestión" (cronologico |> Array.map (fun (_, g) -> float (g |> contar _.PrimeraGestion))) Formato.Numero)
             Graficas.EscalaPropia
 
+    // El mayor de una lista de cantidades (0 si no hay ninguna, p. ej. si lo elegido no deja nada)
+    let mayorDe (cantidades: float list) = List.fold max 0.0 cantidades
+
     let porEstado =
-        let cuentas = filtrados |> List.countBy _.Estado |> List.sortByDescending snd
-        let mayor = cuentas |> List.map snd |> List.max |> float
+        let cuentas = paraEstado |> List.countBy _.Estado |> List.sortByDescending snd
+        let mayor = cuentas |> List.map (snd >> float) |> mayorDe
 
         cuentas
         |> List.map (fun (estado, n) ->
             { Barra.Nombre = (if estado = "" then "(sin dato)" else estado)
               Valor = n
-              Fraccion = fraccion (float n) mayor })
+              Fraccion = fraccion (float n) mayor
+              Clave = (if estado = "" then null else estado)   // sin estado no hay filtro posible
+              Elegida = estado <> "" && estado = f.Estado })
 
     let posicionTramo tramo =
         List.tryFindIndex ((=) tramo) ordenTramos |> Option.defaultValue Int32.MaxValue
 
     let porTramoCierre =
         let tramos =
-            filtrados
+            paraTramo
             |> List.filter (fun t -> t.TramoCierre <> "")
             |> List.groupBy _.TramoCierre
             |> List.sortBy (fst >> posicionTramo)
         // Las dos barras de cada tramo, a la escala del tramo con más tickets
-        let mayor = tramos |> List.map (snd >> List.length) |> List.fold max 0 |> float
+        let mayor = tramos |> List.map (snd >> List.length >> float) |> mayorDe
 
         tramos
         |> List.map (fun (tramo, g) ->
@@ -317,18 +354,34 @@ let private armar (vm: TicketsViewModel) (f: FiltrosTickets) (todos: Ticket list
               Tickets = g.Length
               PrimeraGestion = primera
               FraccionTickets = fraccion (float g.Length) mayor
-              FraccionPrimera = fraccion (float primera) mayor })
+              FraccionPrimera = fraccion (float primera) mayor
+              Clave = tramo
+              Elegida = tramo = f.Tramo })
 
     let primeraGestionPorTipo =
         let tipos =
-            filtrados
+            paraTipo
             |> List.groupBy _.Tipo
             |> List.map (fun (tipo, g) -> tipo, float (g |> contar _.PrimeraGestion) / float g.Length)
             |> List.sortByDescending snd
-        let mayor = tipos |> List.map snd |> List.max
+        let mayor = tipos |> List.map snd |> mayorDe
 
         tipos
-        |> List.map (fun (tipo, pct) -> { BarraPct.Nombre = tipo; Porcentaje = pct; Fraccion = fraccion pct mayor })
+        |> List.map (fun (tipo, pct) ->
+            { BarraPct.Nombre = tipo
+              Porcentaje = pct
+              Fraccion = fraccion pct mayor
+              Clave = (if tipo = "" then null else tipo)
+              Elegida = tipo <> "" && tipo = f.TipoTicket })
+
+    // Lo elegido al pulsar las gráficas, como etiquetas que se quitan con un clic
+    let selecciones =
+        [| if rangoPeriodo.IsSome then
+               { Seleccion.Clave = "Periodo"
+                 Texto = $"Periodo: {etiquetaLarga f.Periodo.Value f.PeriodoGrafica variosAnios}" }
+           if not (String.IsNullOrEmpty f.Estado) then { Seleccion.Clave = "Estado"; Texto = $"Estado: {f.Estado}" }
+           if not (String.IsNullOrEmpty f.Tramo) then { Seleccion.Clave = "Tramo"; Texto = $"Tiempo de cierre: {f.Tramo}" }
+           if not (String.IsNullOrEmpty f.TipoTicket) then { Seleccion.Clave = "TipoTicket"; Texto = $"Tipo: {f.TipoTicket}" } |]
 
     { vm with
         FechaMin = fechaMin
@@ -336,6 +389,7 @@ let private armar (vm: TicketsViewModel) (f: FiltrosTickets) (todos: Ticket list
         Listas = listas.Visibles
         MasListas = listas.Mas
         MasFiltrosActivos = listas.MasActivos
+        Selecciones = selecciones
         SinAgente = sinAgente.Length
         FilasDetalle = filtrados |> List.map _.Fila |> Array.ofList
 

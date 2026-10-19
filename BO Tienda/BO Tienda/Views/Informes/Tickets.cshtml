@@ -46,6 +46,10 @@ else
             <input type="hidden" name="Suscripcion" value="@f.Suscripcion" />
             <input type="hidden" name="PeriodoGrafica" value="@f.PeriodoGrafica" data-defecto="mes" />
             <input type="hidden" name="PeriodoTabla" value="@f.PeriodoTabla" data-defecto="dia" />
+            @* Lo que se elige al pulsar las gráficas (Estado es una lista de «Más filtros») *@
+            <input type="hidden" name="Periodo" value="@f.Periodo?.ToString("yyyy-MM-dd")" />
+            <input type="hidden" name="Tramo" value="@f.Tramo" />
+            <input type="hidden" name="TipoTicket" value="@f.TipoTicket" />
 
             <h2 class="panel-titulo">Filtros</h2>
 
@@ -118,6 +122,9 @@ else
                 </div>
             }
 
+            @* Lo elegido al pulsar las gráficas; también sin tickets, para poder quitarlo *@
+            <partial name="_Selecciones" model="Model.Selecciones" />
+
             @if (Model.PorGrupo.Length == 0)
             {
                 <div class="tarjeta aparece"><p class="nota">No hay tickets con estos filtros.</p></div>
@@ -169,36 +176,42 @@ else
                     <section class="tarjeta crono-tarjeta aparece" id="cronologico">
                         <div class="tarjeta-cabeza">
                             <h2>Tickets y cierres en 1ª gestión</h2>
-                            @* Mes / Semana / Día: al pulsar, recarga y vuelve aquí (#cronologico) *@
+                            @* Mes / Semana / Día: al pulsar, recarga y vuelve aquí (#cronologico).
+                               El punto elegido era de otro periodo: se quita (data-limpiar). *@
                             <div class="segmento" role="group" aria-label="Ver por">
                                 @foreach (var (valor, texto) in new[] { ("mes", "Mes"), ("semana", "Semana"), ("dia", "Día") })
                                 {
                                     var activo = f.PeriodoGrafica == valor;
                                     <button type="button" class="@(activo ? "activo" : null)" aria-pressed="@(activo ? "true" : "false")"
-                                            data-fijar="PeriodoGrafica" data-valor="@valor" data-ancla="cronologico">@texto</button>
+                                            data-fijar="PeriodoGrafica" data-valor="@valor" data-ancla="cronologico" data-limpiar="Periodo">@texto</button>
                                 }
                             </div>
                         </div>
                         <partial name="_GraficaLineas" model="Model.Cronologico" />
                     </section>
 
-                    <section class="tarjeta aparece">
+                    @* Las barras son botones: pulsar una filtra el informe por ella
+                       (data-fijar = parámetro, data-valor = lo que filtra, vacío si
+                       ya está elegida: otra vez la quita). Sin clave (sin estado), no filtra. *@
+                    <section class="tarjeta aparece" id="por-estado">
                         <div class="tarjeta-cabeza"><h2>Tickets por estado</h2></div>
-                        <div class="hbarras">
+                        <div class="hbarras @(Array.Exists(Model.PorEstado, b => b.Elegida) ? "con-seleccion" : null)">
                             @foreach (var b in Model.PorEstado)
                             {
-                                <div class="hbarra">
-                                    <span class="hbarra-nombre" title="@b.Nombre">@b.Nombre</span>
+                                <button type="button" class="hbarra @(b.Elegida ? "elegida" : null)" title="@b.Nombre"
+                                        disabled="@(b.Clave is null)" aria-pressed="@(b.Elegida ? "true" : "false")"
+                                        data-fijar="Estado" data-valor="@(b.Elegida ? "" : b.Clave)" data-ancla="por-estado">
+                                    <span class="hbarra-nombre">@b.Nombre</span>
                                     <span class="hbarra-pista"><span class="hbarra-relleno" style="--fraccion:@b.Fraccion"></span></span>
                                     <span class="hbarra-cifra">@Formato.Entero(b.Valor)</span>
-                                </div>
+                                </button>
                             }
                         </div>
                     </section>
                 </div>
 
                 <div class="rejilla-2">
-                    <section class="tarjeta aparece">
+                    <section class="tarjeta aparece" id="tiempos-cierre">
                         <div class="tarjeta-cabeza"><h2>Tiempos de cierre</h2></div>
                         <div class="leyenda">
                             <span class="pastilla">Tickets</span>
@@ -210,31 +223,34 @@ else
                         }
                         else
                         {
-                            <div class="hbarras">
+                            <div class="hbarras @(Array.Exists(Model.PorTramoCierre, b => b.Elegida) ? "con-seleccion" : null)">
                                 @foreach (var b in Model.PorTramoCierre)
                                 {
-                                    <div class="hbarra pareja">
+                                    <button type="button" class="hbarra pareja @(b.Elegida ? "elegida" : null)" aria-pressed="@(b.Elegida ? "true" : "false")"
+                                            data-fijar="Tramo" data-valor="@(b.Elegida ? "" : b.Clave)" data-ancla="tiempos-cierre">
                                         <span class="hbarra-nombre">@b.Nombre</span>
                                         <span class="hbarra-pista"><span class="hbarra-relleno" style="--fraccion:@b.FraccionTickets"></span></span>
                                         <span class="hbarra-cifra">@Formato.Entero(b.Tickets)</span>
                                         <span class="hbarra-pista hbarra-media"><span class="hbarra-media-relleno" style="--fraccion:@b.FraccionPrimera"></span></span>
                                         <span class="hbarra-cifra secundaria">@Formato.Entero(b.PrimeraGestion)</span>
-                                    </div>
+                                    </button>
                                 }
                             </div>
                         }
                     </section>
 
-                    <section class="tarjeta aparece">
+                    <section class="tarjeta aparece" id="por-tipo">
                         <div class="tarjeta-cabeza"><h2>Cierre en primera gestión por tipo</h2></div>
-                        <div class="hbarras secundaria">
+                        <div class="hbarras secundaria @(Array.Exists(Model.PrimeraGestionPorTipo, b => b.Elegida) ? "con-seleccion" : null)">
                             @foreach (var b in Model.PrimeraGestionPorTipo)
                             {
-                                <div class="hbarra">
-                                    <span class="hbarra-nombre" title="@b.Nombre">@b.Nombre</span>
+                                <button type="button" class="hbarra @(b.Elegida ? "elegida" : null)" title="@b.Nombre"
+                                        disabled="@(b.Clave is null)" aria-pressed="@(b.Elegida ? "true" : "false")"
+                                        data-fijar="TipoTicket" data-valor="@(b.Elegida ? "" : b.Clave)" data-ancla="por-tipo">
+                                    <span class="hbarra-nombre">@b.Nombre</span>
                                     <span class="hbarra-pista"><span class="hbarra-relleno" style="--fraccion:@b.Fraccion"></span></span>
                                     <span class="hbarra-cifra">@Formato.Porcentaje(b.Porcentaje)</span>
-                                </div>
+                                </button>
                             }
                         </div>
                     </section>

@@ -6,11 +6,18 @@
    más es peor, 0 sin color), la intensidad del acento en th[data-calor="si"]
    y pagina de 10 en 10. Las filas .pocas (menos de 20 llamadas) van
    al final y en gris; la fila de totales, sin color.
+   Pulsar una fila filtra el informe por ella (Model.Filtro = el parámetro
+   de la URL); si ya es la elegida, quita el filtro. Las filas sin clave
+   («(sin dato)») no se pueden filtrar. Ojo: Razor escribe siempre los
+   data-*, así que site.js ignora el data-fijar vacío.
    ===================================================================== *@
 @model Ranking
+@{
+    var hayElegida = Array.Exists(Model.Filas, fila => fila.Elegida);
+}
 
 <div class="tabla-scroll">
-    <table class="ranking" data-mapa data-paginar="10">
+    <table class="ranking @(hayElegida ? "con-seleccion" : null)" data-mapa data-paginar="10">
         <thead>
             <tr>
                 <th class="izq" scope="col" data-orden="texto">@Model.Agrupacion</th>
@@ -24,7 +31,12 @@
         <tbody>
             @foreach (var fila in Model.Filas)
             {
-                <tr class="@(fila.Pocas ? "pocas" : null)" title="@(fila.Pocas ? "Menos de 20 llamadas: va al final y sin color" : null)">
+                var elegible = fila.Clave is not null;
+                var ayuda = !elegible ? null : fila.Elegida ? "Pulsa para quitar el filtro" : "Pulsa para filtrar por esta fila";
+                <tr class="@(fila.Pocas ? "pocas" : null) @(elegible ? "elegible" : null) @(fila.Elegida ? "elegida" : null)"
+                    title="@(fila.Pocas ? "Menos de 20 llamadas: va al final y sin color. " + ayuda : ayuda)"
+                    data-fijar="@(elegible ? Model.Filtro : null)" data-valor="@(fila.Elegida ? "" : fila.Clave)" data-ancla="ranking"
+                    tabindex="@(elegible ? "0" : null)">
                     <td class="izq nombre">
                         @fila.Nombre
                         @if (fila.Detalle is not null)

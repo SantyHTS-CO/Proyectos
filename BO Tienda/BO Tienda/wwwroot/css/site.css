@@ -813,13 +813,28 @@ select.elegido { border-color: var(--acento); border-left-width: 3px; }
 /* ----- Barras horizontales: nombre | barra | cifra -----
    El largo sale de --fraccion (0–1) y crece con scaleX: la cifra va en su
    columna, así nunca se sale ni pisa la barra. */
-.hbarras { display: grid; gap: 10px; }
+.hbarras { display: grid; gap: 2px; }
 .hbarra {
     display: grid;
     grid-template-columns: minmax(0, 34%) minmax(0, 1fr) 5.5em;
     align-items: center;
     gap: 4px 12px;
 }
+/* Las barras son botones: pulsar una filtra el informe (ver «Lo que filtra al pulsarlo») */
+button.hbarra {
+    width: 100%;
+    padding: 4px 8px;
+    border: 0;
+    border-radius: var(--radio-sm);
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color var(--t-hover) var(--curva), opacity var(--t-hover) var(--curva);
+}
+button.hbarra:hover:not(:disabled) { background: var(--pista); }
+button.hbarra:disabled { cursor: default; }
 .hbarra.pareja .hbarra-nombre { grid-row: span 2; }
 .hbarra-nombre {
     overflow: hidden;
@@ -1018,6 +1033,57 @@ tr.hija td.izq { padding-left: 42px; font-weight: 400; }
 .desplegar[aria-expanded="true"] .icono { transform: rotate(90deg); }
 
 
+/* ----- Lo que filtra al pulsarlo -----
+   Un punto de la gráfica por tiempo, una barra o una fila del ranking filtra
+   todo el informe. Lo elegido lleva el filo del acento y lo demás de ese
+   grupo se atenúa; las etiquetas de arriba lo resumen y lo quitan. */
+.selecciones { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.selecciones-titulo { color: var(--texto-suave); font-size: 12.5px; }
+.seleccion {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 100%;
+    padding: 4px 8px 4px 12px;
+    border: 1px solid var(--acento);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--acento) 10%, var(--superficie));
+    color: var(--texto);
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color var(--t-hover) var(--curva);
+}
+.seleccion:hover { background: color-mix(in srgb, var(--acento) 20%, var(--superficie)); }
+.seleccion span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.seleccion .icono { width: 14px; height: 14px; }
+.nota.pista { color: var(--texto-tenue); font-size: 12px; }
+
+/* Barras */
+.hbarra.elegida,
+button.hbarra.elegida:hover {
+    background: color-mix(in srgb, var(--acento) 10%, transparent);
+    box-shadow: inset 3px 0 0 var(--acento);
+}
+.con-seleccion .hbarra:not(.elegida) { opacity: .5; }
+
+/* Filas del ranking */
+tr.elegible { cursor: pointer; }
+tr.elegible:focus-visible { outline-offset: -2px; }
+tbody tr.elegida td:not(.calor, .mapa-verde, .mapa-ambar, .mapa-rojo) {
+    background: color-mix(in srgb, var(--acento) 10%, var(--superficie));
+}
+tr.elegida td.nombre { box-shadow: inset 3px 0 0 var(--acento); font-weight: 700; }
+table.con-seleccion tbody tr:not(.elegida) { opacity: .6; }
+
+/* Gráfica por tiempo: el punto elegido, más grande y con guía fija */
+.crono-lienzo.elegible { cursor: pointer; }
+.con-seleccion .marca-x:not(.elegida) .punto { opacity: .45; }
+.marca-x.elegida .punto { stroke-width: 3.5; r: 6px; }
+.guia.fija { border-left: 2px solid var(--acento); opacity: .7; }
+
+
 /* =====================================================================
    12. Movimiento
    ===================================================================== */
@@ -1122,6 +1188,7 @@ tr.hija td.izq { padding-left: 42px; font-weight: 400; }
     .paginador,
     .boton-tema,
     .segmento,
+    .nota.pista,
     .desplegar { display: none; }
     .tablero { display: block; min-width: 0; }
     .tarjeta,

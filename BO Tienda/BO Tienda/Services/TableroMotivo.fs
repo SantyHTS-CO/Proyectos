@@ -150,19 +150,29 @@ let private pct (v: float option) =
 
 let private vacia = { CeldaRanking.Texto = ""; Valor = null; Clase = null }
 
+/// El parámetro (y la lista del panel) que filtra la fila de un ranking según «Ver por».
+let private filtroDelRanking ver =
+    match ver with
+    | "motivo3" -> "Motivo3"
+    | "agente" -> "Agente"
+    | "team" -> "Team"
+    | _ -> "Motivo2"
+
 /// Filas del ranking según «Ver por». Las de pocas llamadas van al final.
-let private ranking (ver: string) (filtradas: Llamada list) (total: Medidas) (ticketsPor: (string -> int) option) =
-    let grupos: (string * string * Llamada list) list =
+/// Pulsar una fila filtra por ella («elegido» = la ya elegida, que sale resaltada).
+let private ranking (ver: string) (elegido: string) (filtradas: Llamada list) (total: Medidas) (ticketsPor: (string -> int) option) =
+    // (clave que filtra, nombre que se ve, texto pequeño, llamadas del grupo)
+    let grupos: (string * string * string * Llamada list) list =
         let sinDato v = if v = "" then "(sin dato)" else v
 
         match ver with
         | "motivo3" ->
             filtradas
             |> List.groupBy (fun l -> l.Motivo2, l.Motivo3)
-            |> List.map (fun ((m2, m3), g) -> sinDato m3, sinDato m2, g)
-        | "agente" -> filtradas |> List.groupBy _.Agente |> List.map (fun (a, g) -> sinDato a, null, g)
-        | "team" -> filtradas |> List.groupBy _.Team |> List.map (fun (t, g) -> sinDato t, null, g)
-        | _ -> filtradas |> List.groupBy _.Motivo2 |> List.map (fun (m, g) -> sinDato m, null, g)
+            |> List.map (fun ((m2, m3), g) -> m3, sinDato m3, sinDato m2, g)
+        | "agente" -> filtradas |> List.groupBy _.Agente |> List.map (fun (a, g) -> a, sinDato a, null, g)
+        | "team" -> filtradas |> List.groupBy _.Team |> List.map (fun (t, g) -> t, sinDato t, null, g)
+        | _ -> filtradas |> List.groupBy _.Motivo2 |> List.map (fun (m, g) -> m, sinDato m, null, g)
 
     let porPersona = ver = "agente" || ver = "team"
 
@@ -208,14 +218,16 @@ let private ranking (ver: string) (filtradas: Llamada list) (total: Medidas) (ti
 
     let filas =
         grupos
-        |> List.map (fun (nombre, detalle, g) ->
+        |> List.map (fun (clave, nombre, detalle, g) ->
             let m = medir g 0
 
             m.Llamadas,
             { FilaRanking.Nombre = nombre
               Detalle = detalle
               Celdas = celdas nombre m
-              Pocas = m.Llamadas < minimoRanking })
+              Pocas = m.Llamadas < minimoRanking
+              Clave = (if clave = "" then null else clave)   // «(sin dato)» no se puede filtrar
+              Elegida = clave <> "" && clave = elegido })
         // De más a menos llamadas, y las de pocas al final
         |> List.sortBy (fun (llamadas, f) -> f.Pocas, -llamadas)
         |> List.map snd
@@ -226,6 +238,7 @@ let private ranking (ver: string) (filtradas: Llamada list) (total: Medidas) (ti
          | "agente" -> "Agente"
          | "team" -> "Team"
          | _ -> "Motivo 2")
+      Filtro = filtroDelRanking ver
       Columnas = columnas
       Filas = Array.ofList filas
       Total = totales }
@@ -243,17 +256,26 @@ let private armar (vm: MotivoViewModel) (f: FiltrosMotivo) (tickets: TableroTick
               | "motivo3" | "agente" | "team" -> f.Ver
               | _ -> "motivo2")
     f.PeriodoMotivo <- periodoValido "semana" f.PeriodoMotivo
-    let desde, hasta = f.Desde.Value, f.Hasta.Value
+    let desdePanel, hastaPanel = f.Desde.Value, f.Hasta.Value
+
+    // El punto que se pulsó en la gráfica por tiempo recorta el rango del panel
+    // (si ya no vale, se olvida)
+    let rangoPeriodo = rangoDelPeriodo f.PeriodoLlamadas f.PeriodoMotivo desdePanel hastaPanel
+    if rangoPeriodo.IsNone then f.PeriodoLlamadas <- Nullable()
+    let desde, hasta = rangoPeriodo |> Option.defaultValue (desdePanel, hastaPanel)
 
     // Mismo / Diferente motivo (botones del panel)
     let cumpleTipo (l: Llamada) =
         String.IsNullOrEmpty f.TipoMotivo || (if l.Mismo then mismoMotivo else diferenteMotivo) = f.TipoMotivo
 
+    // «excepto» = "Periodo": la gráfica por tiempo ignora su propia selección
+    // y siempre muestra todo el rango del panel
+    let candidatas excepto =
+        let a, b = if excepto = "Periodo" then desdePanel, hastaPanel else desde, hasta
+        todas |> List.filter (fun l -> enRango a b l.Fecha && cumpleTipo l)
+
     // Como en Tickets: solo cuentan los tickets que cruzan con la nómina
-    let baseLlamadas, sinAgente =
-        todas
-        |> List.filter (fun l -> enRango desde hasta l.Fecha && cumpleTipo l)
-        |> List.partition (fun l -> l.Agente <> "")
+    let baseLlamadas, sinAgente = candidatas "" |> List.partition (fun l -> l.Agente <> "")
 
     let dims =
         [ dimension "Supervisor" "Supervisor"     (fun (l: Llamada) -> l.Supervisor) f.Supervisor
@@ -267,16 +289,33 @@ let private armar (vm: MotivoViewModel) (f: FiltrosMotivo) (tickets: TableroTick
     let listas = panel dims baseLlamadas
     let filtradas = baseLlamadas |> List.filter (cumple dims)
 
+    // Lo que ven el ranking (sus filas) y la gráfica por tiempo, que filtran al
+    // pulsarlos: todo menos su propia selección, para que sigan mostrando todas
+    // sus opciones y se pueda cambiar de una a otra con un clic.
+    let sinSeleccion excepto =
+        candidatas excepto
+        |> List.filter (fun l -> l.Agente <> "" && dims |> List.forall (fun d -> d.Clave = excepto || d.Cumple l))
+
+    let filtroRanking = filtroDelRanking f.Ver
+    let paraRanking = sinSeleccion filtroRanking
+    let paraCronologico = sinSeleccion "Periodo"
+
     // Tickets del periodo (tarjeta 1): los de la pestaña Tickets con los
     // filtros que son del ticket (los de motivo son de la llamada).
-    let ticketsEn a b =
+    // «excepto» = la lista del panel que no se aplica (la del ranking).
+    let ticketsEn excepto a b =
         let deTicket (t: TableroTickets.Ticket) =
-            [ f.Supervisor, t.Supervisor; f.Team, t.Team; f.Agente, t.Agente; f.Marca, t.Marca; f.TipoTicket, t.Tipo ]
-            |> List.forall (fun (elegido, valor) -> String.IsNullOrEmpty elegido || elegido = valor)
+            [ "Supervisor", f.Supervisor, t.Supervisor
+              "Team", f.Team, t.Team
+              "Agente", f.Agente, t.Agente
+              "Marca", f.Marca, t.Marca
+              "TipoTicket", f.TipoTicket, t.Tipo ]
+            |> List.forall (fun (clave, elegido, valor) -> clave = excepto || String.IsNullOrEmpty elegido || elegido = valor)
 
         tickets |> List.filter (fun t -> t.Agente <> "" && enRango a b t.Fecha && deTicket t)
 
-    let ticketsDelPeriodo = ticketsEn desde hasta
+    let ticketsDelPeriodo = ticketsEn "" desde hasta
+    let ticketsDelRanking = ticketsEn filtroRanking desde hasta
 
     // Tarjetas vs periodo anterior: mismos filtros, mismo número de días
     let antDesde, antHasta, dias = periodoAnterior desde hasta
@@ -286,7 +325,7 @@ let private armar (vm: MotivoViewModel) (f: FiltrosMotivo) (tickets: TableroTick
         |> List.filter (fun l -> enRango antDesde antHasta l.Fecha && cumpleTipo l && l.Agente <> "" && cumple dims l)
 
     let act = medir filtradas ticketsDelPeriodo.Length
-    let ant = if List.isEmpty anteriores then None else Some(medir anteriores (ticketsEn antDesde antHasta).Length)
+    let ant = if List.isEmpty anteriores then None else Some(medir anteriores (ticketsEn "" antDesde antHasta).Length)
     let delAnterior campo = ant |> Option.bind campo
     let volumen (campo: Medidas -> int) = Some(float (campo act)), delAnterior (fun a -> Some(float (campo a)))
 
@@ -309,10 +348,12 @@ let private armar (vm: MotivoViewModel) (f: FiltrosMotivo) (tickets: TableroTick
            tarjeta "Diferente motivo" Iconos.Desvio $"{Formato.Entero act.Diferente} llamadas"
                (comparar act.PctDiferente (delAnterior _.PctDiferente) CifraPorcentaje Neutro true) |]
 
-    // Tickets por agente o team, para el ranking
+    // El ranking (sin su propia selección) con sus totales y los tickets por agente o team
+    let medidasRanking = medir paraRanking ticketsDelRanking.Length
+
     let ticketsPor =
         let contarPor (campo: TableroTickets.Ticket -> string) =
-            let cuenta = ticketsDelPeriodo |> List.countBy campo |> dict
+            let cuenta = ticketsDelRanking |> List.countBy campo |> dict
             Some(fun nombre -> match cuenta.TryGetValue nombre with | true, n -> n | _ -> 0)
 
         match f.Ver with
@@ -320,11 +361,18 @@ let private armar (vm: MotivoViewModel) (f: FiltrosMotivo) (tickets: TableroTick
         | "team" -> contarPor _.Team
         | _ -> None
 
+    let elegidoRanking =
+        match f.Ver with
+        | "motivo3" -> f.Motivo3
+        | "agente" -> f.Agente
+        | "team" -> f.Team
+        | _ -> f.Motivo2
+
     // Gráfica: % mismo / diferente motivo por periodo (fecha del ticket)
-    let variosAnios = (filtradas |> List.map _.Fecha.Year |> List.distinct |> List.length) > 1
+    let variosAnios = (paraCronologico |> List.map _.Fecha.Year |> List.distinct |> List.length) > 1
 
     let porPeriodo =
-        filtradas
+        paraCronologico
         |> List.groupBy (fun l -> inicioPeriodo l.Fecha f.PeriodoMotivo)
         |> List.sortBy fst
         |> Array.ofList
@@ -333,12 +381,28 @@ let private armar (vm: MotivoViewModel) (f: FiltrosMotivo) (tickets: TableroTick
 
     let motivos =
         Graficas.lineas
+            "PeriodoLlamadas"
+            (if rangoPeriodo.IsSome then fechaIso f.PeriodoLlamadas.Value else null)
             (porPeriodo
              |> Array.map (fun (inicio, _) ->
-                 etiquetaCorta inicio f.PeriodoMotivo variosAnios, etiquetaLarga inicio f.PeriodoMotivo variosAnios))
+                 etiquetaCorta inicio f.PeriodoMotivo variosAnios,
+                 etiquetaLarga inicio f.PeriodoMotivo variosAnios,
+                 fechaIso inicio))
             (Graficas.serie "Mismo motivo" pctMismo Formato.Porcentaje)
             (Graficas.serie "Diferente motivo" (pctMismo |> Array.map (fun p -> 1.0 - p)) Formato.Porcentaje)
             Graficas.EscalaPorcentaje
+
+    // Lo elegido al pulsar la gráfica o el ranking, como etiquetas que se quitan con un clic
+    let selecciones =
+        [| if rangoPeriodo.IsSome then
+               { Seleccion.Clave = "PeriodoLlamadas"
+                 Texto = $"Periodo: {etiquetaLarga f.PeriodoLlamadas.Value f.PeriodoMotivo variosAnios}" }
+           for clave, etiqueta, valor in
+               [ "Motivo2", "Motivo 2", f.Motivo2
+                 "Motivo3", "Motivo 3", f.Motivo3
+                 "Agente", "Agente", f.Agente
+                 "Team", "Team", f.Team ] do
+               if not (String.IsNullOrEmpty valor) then { Seleccion.Clave = clave; Texto = $"{etiqueta}: {valor}" } |]
 
     { vm with
         FechaMin = fechaMin
@@ -346,13 +410,14 @@ let private armar (vm: MotivoViewModel) (f: FiltrosMotivo) (tickets: TableroTick
         Listas = listas.Visibles
         MasListas = listas.Mas
         MasFiltrosActivos = listas.MasActivos
+        Selecciones = selecciones
         HayDatos = not (List.isEmpty filtradas)
         SinAgente = sinAgente |> distintos _.Conversacion
         VentanaAbierta = hasta.AddDays ventanaDias >= DateOnly.FromDateTime DateTime.Today
         PeriodoAnterior = textoPeriodo antDesde antHasta dias
         HayPeriodoAnterior = Option.isSome ant
         Indicadores = indicadores
-        Ranking = ranking f.Ver filtradas act ticketsPor
+        Ranking = ranking f.Ver elegidoRanking paraRanking medidasRanking ticketsPor
         Motivos = motivos
         FilasDetalle = filtradas |> List.map _.Fila |> Array.ofList }
 

@@ -1,0 +1,27 @@
+@* =====================================================================
+   Views/Informes/_Selecciones.cshtml — Lo elegido al pulsar las gráficas
+   ---------------------------------------------------------------------
+   Pulsar un punto de una gráfica, una barra o una fila del ranking filtra
+   todo el informe. Aquí se ve qué está elegido, como etiquetas que se
+   quitan con un clic (el botón fija ese filtro a vacío: site.js, [data-fijar]).
+   Sin nada elegido, una línea de ayuda.
+   ===================================================================== *@
+@model Seleccion[]
+
+@if (Model.Length > 0)
+{
+    <div class="selecciones" role="group" aria-label="Filtros elegidos en las gráficas">
+        <span class="selecciones-titulo">Filtrando por</span>
+        @foreach (var s in Model)
+        {
+            <button type="button" class="seleccion" data-fijar="@s.Clave" data-valor="" title="Quitar este filtro" aria-label="Quitar el filtro @s.Texto">
+                <span>@s.Texto</span>
+                @Iconos.Cerrar
+            </button>
+        }
+    </div>
+}
+else
+{
+    <p class="nota pista">Pulsa un punto de una gráfica, una barra o una fila para filtrar el informe. Púlsalo otra vez para quitar el filtro.</p>
+}

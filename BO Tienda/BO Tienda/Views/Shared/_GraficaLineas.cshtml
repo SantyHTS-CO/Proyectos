@@ -7,15 +7,21 @@
    Las cifras van en pastillas (HTML encima del SVG) y, con escala de %,
    hay rejilla con su eje. En línea solo van posiciones (left, top);
    los colores, en site.css (.principal / .secundaria).
+   Si la gráfica filtra (Model.Elegir = el parámetro de la URL), pulsar un
+   punto elige ese periodo (data-valor) y pulsarlo otra vez lo quita
+   (site.js, sección 6); el elegido lleva la clase «elegida».
    ===================================================================== *@
 @model GraficaCrono
+@{
+    var filtra = Model.Elegir is not null;
+}
 
 <div class="leyenda">
     <span class="pastilla">@Model.NombrePrincipal</span>
     <span class="pastilla secundaria">@Model.NombreSecundaria</span>
 </div>
 
-<div class="crono-lienzo" data-crono>
+<div class="crono-lienzo" data-crono data-elegir="@Model.Elegir">
     <svg class="crono-svg" width="100%" height="@Model.Alto" role="img"
          aria-label="@Model.NombrePrincipal y @Model.NombreSecundaria en el tiempo">
         @* Capa estirable (viewBox 0–1000) para rejilla, curvas y rellenos *@
@@ -32,7 +38,7 @@
         @* Puntos en % para que no se deformen *@
         @foreach (var p in Model.Puntos)
         {
-            <g class="marca-x" data-x="@p.X">
+            <g class="marca-x @(p.Elegido ? "elegida" : null)" data-x="@p.X" data-valor="@p.Valor" tabindex="@(filtra ? "0" : null)">
                 <title>@p.Ficha</title>
                 <circle class="punto principal" cx="@(p.X)%" cy="@p.YPrincipal" r="@Model.Radio" />
                 <circle class="punto secundaria" cx="@(p.X)%" cy="@p.YSecundaria" r="@Model.Radio" />
@@ -66,5 +72,9 @@
     @if (!Model.ConNumeros)
     {
         <text>Pasa el ratón por la gráfica para ver los valores.</text>
+    }
+    @if (filtra)
+    {
+        <text>Pulsa un punto para filtrar el informe por ese periodo.</text>
     }
 </p>

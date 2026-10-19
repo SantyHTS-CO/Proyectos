@@ -58,8 +58,12 @@ let private area (p: (float * float)[]) =
 let private topePorcentaje (maximo: float) =
     max 0.2 (Math.Ceiling(Math.Round(maximo * 5.0, 6)) / 5.0)
 
-/// etiquetas = (texto corto del eje, texto largo de la ficha) por periodo.
-let lineas (etiquetas: (string * string)[]) (principal: Serie) (secundaria: Serie) (escala: Escala) : GraficaCrono =
+/// etiquetas = (texto corto del eje, texto largo de la ficha, primer día del
+/// periodo "2026-09-01") por periodo. Pulsar un punto fija el parámetro
+/// «elegir» de la URL a ese primer día (otra vez, lo quita); «elegido» es el
+/// primer día ya elegido (null = ninguno), que sale resaltado.
+let lineas (elegir: string) (elegido: string) (etiquetas: (string * string * string)[])
+           (principal: Serie) (secundaria: Serie) (escala: Escala) : GraficaCrono =
     let cantidad = etiquetas.Length
 
     if cantidad = 0 then
@@ -114,10 +118,11 @@ let lineas (etiquetas: (string * string)[]) (principal: Serie) (secundaria: Seri
           Radio = (if cantidad > 40 then "2.5" else "4")
           EscalaPropia = (escala = EscalaPropia)
           ConNumeros = conNumeros
+          Elegir = elegir
           Rejilla = rejilla
           Puntos =
             etiquetas
-            |> Array.mapi (fun i (corta, larga) ->
+            |> Array.mapi (fun i (corta, larga, inicio) ->
                 let vP, vS = principal.Valores[i], secundaria.Valores[i]
                 let yP, yS = snd enPrincipal[i], snd enSecundaria[i]
                 let principalArriba = yP <= yS
@@ -130,4 +135,6 @@ let lineas (etiquetas: (string * string)[]) (principal: Serie) (secundaria: Seri
                   YDatoPrincipal = n (if principalArriba then encima yP else debajo yP)
                   DatoSecundaria = (if conNumeros then secundaria.Escribir vS else null)
                   YDatoSecundaria = n (if principalArriba then debajo yS else encima yS)
-                  Eje = (if conEtiqueta i then corta else null) }) }
+                  Eje = (if conEtiqueta i then corta else null)
+                  Valor = inicio
+                  Elegido = (not (isNull elegido) && inicio = elegido) }) }

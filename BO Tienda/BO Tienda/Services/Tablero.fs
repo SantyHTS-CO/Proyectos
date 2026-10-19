@@ -63,6 +63,28 @@ let etiquetaLarga (inicio: DateOnly) periodo variosAnios =
     | "semana" -> $"Sem {numeroSemana inicio} · {ddMM inicio}–{ddMM (inicio.AddDays 6)}"
     | _ -> inicio.ToString("MM/dd", CultureInfo.InvariantCulture)
 
+/// Último día del periodo que empieza en «inicio».
+let finPeriodo (inicio: DateOnly) periodo =
+    match periodo with
+    | "mes" -> inicio.AddMonths(1).AddDays(-1)
+    | "semana" -> inicio.AddDays 6
+    | _ -> inicio
+
+/// Un día como viaja en la URL y en los data-valor: "2026-09-01".
+let fechaIso (fecha: DateOnly) = fecha.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+
+/// El periodo que se eligió pulsando un punto de la gráfica por tiempo y las
+/// fechas que deja: el periodo recortado al rango del panel. None si no hay
+/// elección o ya no vale (no empieza donde empiezan los periodos, p. ej. tras
+/// cambiar de Mes a Semana, o cae fuera del rango).
+let rangoDelPeriodo (elegido: Nullable<DateOnly>) periodo (desde: DateOnly) (hasta: DateOnly) =
+    if not elegido.HasValue || inicioPeriodo elegido.Value periodo <> elegido.Value then
+        None
+    else
+        let a = max desde elegido.Value
+        let b = min hasta (finPeriodo elegido.Value periodo)
+        if a <= b then Some(a, b) else None
+
 /// Mismo número de días, justo antes de «Desde» (15 días -> los 15 días previos).
 let periodoAnterior (desde: DateOnly) (hasta: DateOnly) =
     let dias = hasta.DayNumber - desde.DayNumber + 1
