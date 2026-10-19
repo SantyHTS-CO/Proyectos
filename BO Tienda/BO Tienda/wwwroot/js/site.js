@@ -17,6 +17,7 @@
     'use strict';
 
     var CLAVE_CIFRAS = 'bo-tiendas-cifras';   // la misma que en tema.js
+    var CLAVE_SCROLL = 'bo-tiendas-scroll';   // dónde estaba la página al filtrar
     var DURACION_CUENTA = 780;                // ms, como --t-cuenta
     var sinMovimiento = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -65,6 +66,23 @@
         try { sessionStorage.setItem(CLAVE_CIFRAS, JSON.stringify(valores)); } catch (e) { }
     }
 
+    // Filtrar recarga la página: se guarda hasta dónde se había bajado y la
+    // página nueva vuelve a ese punto, para que filtrar no mueva lo que se ve.
+    function guardarScroll() {
+        try { sessionStorage.setItem(CLAVE_SCROLL, JSON.stringify({ ruta: location.pathname, y: window.scrollY })); } catch (e) { }
+    }
+
+    (function volverAlScroll() {
+        var guardado = null;
+        try {
+            guardado = JSON.parse(sessionStorage.getItem(CLAVE_SCROLL) || 'null');
+            sessionStorage.removeItem(CLAVE_SCROLL);
+        } catch (e) { }
+        if (guardado && guardado.ruta === location.pathname) {
+            window.scrollTo({ top: guardado.y, left: 0, behavior: 'instant' });
+        }
+    })();
+
     // Lo vacío o igual a su valor por defecto no va en la URL: así un
     // enlace guardado sigue al último día con datos.
     function prepararEnvio(form) {
@@ -73,6 +91,7 @@
             if (campo.value === '' || (defecto !== undefined && campo.value === defecto)) campo.disabled = true;
         });
         guardarCifras();
+        guardarScroll();
         mostrarCarga();
     }
 
@@ -91,11 +110,11 @@
     // Fija un valor del formulario y recarga: lo usan los botones (Team / Agente,
     // Suscripción, Día / Semana / Mes), las barras, las filas del ranking, los
     // puntos de las gráficas y las etiquetas de filtros elegidos.
-    //   ancla    = bloque al que volver tras recargar
     //   limpiar  = otros campos que se vacían a la vez (nombres separados por espacio)
     // Un valor vacío quita el filtro. Si el campo no está en el panel (una lista
-    // con una sola opción no se pinta) se crea oculto.
-    function fijar(nombre, valor, ancla, limpiar) {
+    // con una sola opción no se pinta) se crea oculto. La página no salta: tras
+    // recargar queda en el mismo punto (guardarScroll).
+    function fijar(nombre, valor, limpiar) {
         if (!filtros || !nombre) return;
         var campo = filtros.elements[nombre];
         if (!campo) {
@@ -110,14 +129,13 @@
                 if (filtros.elements[otro]) filtros.elements[otro].value = '';
             });
         }
-        if (ancla) filtros.action = filtros.action.split('#')[0] + '#' + ancla;
         enviar(filtros);
     }
 
     document.addEventListener('click', function (e) {
         var boton = e.target.closest('[data-fijar]');
         if (!boton || boton.disabled) return;
-        fijar(boton.dataset.fijar, boton.dataset.valor, boton.dataset.ancla, boton.dataset.limpiar);
+        fijar(boton.dataset.fijar, boton.dataset.valor, boton.dataset.limpiar);
     });
 
     // Las filas del ranking que filtran se alcanzan con el teclado
@@ -377,8 +395,7 @@
 
         function elegir(i) {
             var marca = marcas[i];
-            var tarjeta = lienzo.closest('[id]');
-            fijar(parametro, marca.classList.contains('elegida') ? '' : marca.dataset.valor, tarjeta ? tarjeta.id : null);
+            fijar(parametro, marca.classList.contains('elegida') ? '' : marca.dataset.valor);
         }
 
         lienzo.classList.add('elegible');

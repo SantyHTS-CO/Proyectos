@@ -176,14 +176,14 @@ else
                     <section class="tarjeta crono-tarjeta aparece" id="cronologico">
                         <div class="tarjeta-cabeza">
                             <h2>Tickets y cierres en 1ª gestión</h2>
-                            @* Mes / Semana / Día: al pulsar, recarga y vuelve aquí (#cronologico).
+                            @* Mes / Semana / Día: al pulsar, recarga sin mover la página (site.js).
                                El punto elegido era de otro periodo: se quita (data-limpiar). *@
                             <div class="segmento" role="group" aria-label="Ver por">
                                 @foreach (var (valor, texto) in new[] { ("mes", "Mes"), ("semana", "Semana"), ("dia", "Día") })
                                 {
                                     var activo = f.PeriodoGrafica == valor;
                                     <button type="button" class="@(activo ? "activo" : null)" aria-pressed="@(activo ? "true" : "false")"
-                                            data-fijar="PeriodoGrafica" data-valor="@valor" data-ancla="cronologico" data-limpiar="Periodo">@texto</button>
+                                            data-fijar="PeriodoGrafica" data-valor="@valor" data-limpiar="Periodo">@texto</button>
                                 }
                             </div>
                         </div>
@@ -200,7 +200,7 @@ else
                             {
                                 <button type="button" class="hbarra @(b.Elegida ? "elegida" : null)" title="@b.Nombre"
                                         disabled="@(b.Clave is null)" aria-pressed="@(b.Elegida ? "true" : "false")"
-                                        data-fijar="Estado" data-valor="@(b.Elegida ? "" : b.Clave)" data-ancla="por-estado">
+                                        data-fijar="Estado" data-valor="@(b.Elegida ? "" : b.Clave)">
                                     <span class="hbarra-nombre">@b.Nombre</span>
                                     <span class="hbarra-pista"><span class="hbarra-relleno" style="--fraccion:@b.Fraccion"></span></span>
                                     <span class="hbarra-cifra">@Formato.Entero(b.Valor)</span>
@@ -227,7 +227,7 @@ else
                                 @foreach (var b in Model.PorTramoCierre)
                                 {
                                     <button type="button" class="hbarra pareja @(b.Elegida ? "elegida" : null)" aria-pressed="@(b.Elegida ? "true" : "false")"
-                                            data-fijar="Tramo" data-valor="@(b.Elegida ? "" : b.Clave)" data-ancla="tiempos-cierre">
+                                            data-fijar="Tramo" data-valor="@(b.Elegida ? "" : b.Clave)">
                                         <span class="hbarra-nombre">@b.Nombre</span>
                                         <span class="hbarra-pista"><span class="hbarra-relleno" style="--fraccion:@b.FraccionTickets"></span></span>
                                         <span class="hbarra-cifra">@Formato.Entero(b.Tickets)</span>
@@ -246,7 +246,7 @@ else
                             {
                                 <button type="button" class="hbarra @(b.Elegida ? "elegida" : null)" title="@b.Nombre"
                                         disabled="@(b.Clave is null)" aria-pressed="@(b.Elegida ? "true" : "false")"
-                                        data-fijar="TipoTicket" data-valor="@(b.Elegida ? "" : b.Clave)" data-ancla="por-tipo">
+                                        data-fijar="TipoTicket" data-valor="@(b.Elegida ? "" : b.Clave)">
                                     <span class="hbarra-nombre">@b.Nombre</span>
                                     <span class="hbarra-pista"><span class="hbarra-relleno" style="--fraccion:@b.Fraccion"></span></span>
                                     <span class="hbarra-cifra">@Formato.Porcentaje(b.Porcentaje)</span>
@@ -263,9 +263,9 @@ else
                         <h2>Tickets por @grupo.ToLower()</h2>
                         <div class="segmento" role="group" aria-label="Agrupar por">
                             <button type="button" class="@(porTeam ? "activo" : null)" aria-pressed="@(porTeam ? "true" : "false")"
-                                    data-fijar="Vista" data-valor="team" data-ancla="por-grupo">Team</button>
+                                    data-fijar="Vista" data-valor="team">Team</button>
                             <button type="button" class="@(porTeam ? null : "activo")" aria-pressed="@(porTeam ? "false" : "true")"
-                                    data-fijar="Vista" data-valor="agente" data-ancla="por-grupo">Agente</button>
+                                    data-fijar="Vista" data-valor="agente">Agente</button>
                         </div>
                     </div>
                     <div class="tabla-scroll">
@@ -311,13 +311,13 @@ else
                 <section class="tarjeta aparece" id="estado-tickets">
                     <div class="tarjeta-cabeza">
                         <h2>Estado de tickets</h2>
-                        @* Día / Semana / Mes: al pulsar, recarga y vuelve aquí (#estado-tickets) *@
+                        @* Día / Semana / Mes: al pulsar, recarga sin mover la página (site.js) *@
                         <div class="segmento" role="group" aria-label="Agrupar por periodo">
                             @foreach (var (valor, texto) in new[] { ("dia", "Día"), ("semana", "Semana"), ("mes", "Mes") })
                             {
                                 var activo = f.PeriodoTabla == valor;
                                 <button type="button" class="@(activo ? "activo" : null)" aria-pressed="@(activo ? "true" : "false")"
-                                        data-fijar="PeriodoTabla" data-valor="@valor" data-ancla="estado-tickets">@texto</button>
+                                        data-fijar="PeriodoTabla" data-valor="@valor">@texto</button>
                             }
                         </div>
                     </div>
