@@ -25,6 +25,8 @@ let Telefono = icono "<path d='M5 4h3l2 5-2.5 1.5a11 11 0 0 0 5 5L14 13l5 2v3a2 
 let Repetir = icono "<path d='m17 2 3 3-3 3'/><path d='M4 11V9a4 4 0 0 1 4-4h12'/><path d='m7 22-3-3 3-3'/><path d='M20 13v2a4 4 0 0 1-4 4H4'/>"
 let Desvio = icono "<circle cx='6' cy='6' r='2'/><circle cx='6' cy='18' r='2'/><circle cx='18' cy='8' r='2'/><path d='M6 8v8M18 10a6 6 0 0 1-6 6H8'/>"
 let Capas = icono "<path d='m12 3 9 5-9 5-9-5z'/><path d='m3 13 9 5 9-5'/>"
+let Persona = icono "<circle cx='9' cy='8' r='4'/><path d='M2 21a7 7 0 0 1 14 0M19 8v6M16 11h6'/>"
+let Bandera = icono "<path d='M5 21V4'/><path d='M5 4h12l-2 4 2 4H5'/>"
 
 // ----- Acciones y avisos -----
 let Actualizar = icono "<path d='M20 11a8 8 0 0 0-14.3-4.9L4 8M4 4v4h4M4 13a8 8 0 0 0 14.3 4.9L20 16M20 20v-4h-4'/>"

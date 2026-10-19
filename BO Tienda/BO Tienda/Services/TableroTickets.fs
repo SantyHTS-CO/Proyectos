@@ -34,9 +34,14 @@ let private colMarca       = "marca"
 let private colEstado      = "estado_ticket"
 let private colMotivo      = "motivo_apertura"
 let private colSubMotivo   = "subtipo_ticket"
-let private colHorasResol  = "TiempoDeResolucion"          // horas
-let private colHorasPrimer = "TiempoHastaLaPrimeraGestion" // horas
+let private colHorasResol  = "TiempoDeResolucion"          // horas: creación -> cierre
+let private colHorasPrimer = "TiempoHastaLaPrimeraGestion" // horas: creación -> asignación
 let private colHorasAbiert = "TiempoAbierto"               // horas (solo tickets abiertos)
+// «Asignado» = el primer cambio de estado (casi siempre a EN PROGRESO: alguien
+// toma el ticket). De ahí sale TiempoHastaLaPrimeraGestion y, junto a la fecha
+// de cierre, la medición «asignación -> cierre».
+let private colAsignacion  = "fecha_primer_cambio_estado"
+let private colCierre      = "fecha_cierre"
 let private colTramoCierre = "TiempoHastaElCierre"         // "< 4H", "4H - 24H"…
 let private colPrimeraGest = "SOLUCIONADO_PRIMERA_GESTION" // 1 = resuelto en 1ª gestión
 let private colAbierto     = "TICKET_ABIERTOS"             // 1 = sigue abierto
@@ -64,7 +69,8 @@ type internal Ticket =
       Motivo: string
       SubMotivo: string
       HorasResolucion: float option      // None = sin dato (no cuenta en el promedio)
-      HorasPrimeraGestion: float option
+      HorasPrimeraGestion: float option  // creación -> asignación
+      HorasAsignadoACierre: float option // asignación -> cierre (solo tickets cerrados)
       HorasAbierto: float option
       TramoCierre: string
       PrimeraGestion: bool
@@ -87,6 +93,12 @@ let private horas (v: obj) =
     | :? DBNull -> None
     | v -> Some(Convert.ToDouble v)
 
+// Horas entre dos fechas; None si falta alguna (ticket sin cerrar) o vienen al revés
+let private horasEntre (desde: obj) (hasta: obj) =
+    match desde, hasta with
+    | (:? DateTime as d), (:? DateTime as h) when h >= d -> Some((h - d).TotalHours)
+    | _ -> None
+
 /// Pasa de la tabla genérica a una lista de Ticket. Si falta alguna
 /// columna avisa cuál, en vez de fallar con un error raro más adelante.
 let internal leer (datos: TablaDatos) : Result<Ticket list, string> =
@@ -94,7 +106,7 @@ let internal leer (datos: TablaDatos) : Result<Ticket list, string> =
         [ colTicket; colFecha; colTipo; colSuscripcion; colSupervisor; colTeam
           colAgente; colMarca; colEstado; colMotivo; colSubMotivo
           colHorasResol; colHorasPrimer; colHorasAbiert; colTramoCierre
-          colPrimeraGest; colAbierto ]
+          colPrimeraGest; colAbierto; colAsignacion; colCierre ]
 
     match necesarias |> List.filter (fun c -> datos.Indice c < 0) with
     | _ :: _ as faltan -> Error $"""A la consulta de tickets le faltan columnas: {String.concat ", " faltan}"""
@@ -105,6 +117,7 @@ let internal leer (datos: TablaDatos) : Result<Ticket list, string> =
         let iEst, iMot, iSub, iRes = i colEstado, i colMotivo, i colSubMotivo, i colHorasResol
         let iPri, iAbi, iTramo = i colHorasPrimer, i colHorasAbiert, i colTramoCierre
         let iPg, iAb = i colPrimeraGest, i colAbierto
+        let iAsig, iCierre = i colAsignacion, i colCierre
         let texto = Convertir.texto
 
         [ for n in 0 .. datos.Filas.Count - 1 do
@@ -125,6 +138,7 @@ let internal leer (datos: TablaDatos) : Result<Ticket list, string> =
                     SubMotivo = texto r[iSub]
                     HorasResolucion = horas r[iRes]
                     HorasPrimeraGestion = horas r[iPri]
+                    HorasAsignadoACierre = horasEntre r[iAsig] r[iCierre]
                     HorasAbierto = horas r[iAbi]
                     TramoCierre = texto r[iTramo]
                     PrimeraGestion = Convertir.entero r[iPg] = 1
@@ -143,6 +157,7 @@ type private Medidas =
       Abiertos: int
       HorasResol: float option
       HorasPrimera: float option
+      HorasACierre: float option
       HorasAbierto: float option }
 
     /// First Intervention Rate
@@ -157,6 +172,7 @@ let private medir (ts: Ticket list) =
       Abiertos = ts |> contar _.Abierto
       HorasResol = ts |> List.map _.HorasResolucion |> promedio
       HorasPrimera = ts |> List.map _.HorasPrimeraGestion |> promedio
+      HorasACierre = ts |> List.map _.HorasAsignadoACierre |> promedio
       HorasAbierto = ts |> List.map _.HorasAbierto |> promedio }   // TiempoAbierto solo existe en los abiertos
 
 // ----------------------------------------------------------------
@@ -234,6 +250,9 @@ let private armar (vm: TicketsViewModel) (f: FiltrosTickets) (todos: Ticket list
 
     // Tickets abiertos es una foto de HOY (los que siguen abiertos): no se
     // compara con el periodo anterior.
+    // Siete tarjetas en dos filas (4 + 3, ver .resumen.de-7 en site.css): arriba
+    // la calidad y lo abierto; abajo los tiempos, donde resolución = creación ->
+    // asignación + asignación -> cierre.
     let indicadores =
         [| tarjeta "Resueltos en 1ª gestión (FIR)" Iconos.Diana
                $"{Formato.Entero act.Primera} en 1ª gestión de {Formato.Entero act.Tickets} tickets"
@@ -241,14 +260,16 @@ let private armar (vm: TicketsViewModel) (f: FiltrosTickets) (todos: Ticket list
            |> destacada
            tarjeta "Solucionados fuera de la 1ª gestión" Iconos.Ticket null
                (comparar (Some(float act.Fuera)) (delAnterior (fun a -> Some(float a.Fuera))) CifraEntera Neutro false)
-           tarjeta "Tiempo de resolución" Iconos.Reloj null
-               (comparar act.HorasResol (delAnterior _.HorasResol) CifraDuracion Menos false)
-           tarjeta "Tiempo hasta la 1ª gestión" Iconos.Mensaje null
-               (comparar act.HorasPrimera (delAnterior _.HorasPrimera) CifraDuracion Menos false)
-           tarjeta "Tiempo de ticket abierto" Iconos.Check null
-               (comparar act.HorasAbierto (delAnterior _.HorasAbierto) CifraDuracion Menos false)
            tarjeta "Tickets abiertos" Iconos.Bandeja null
-               (comparar (Some(float act.Abiertos)) None CifraEntera Menos false) |]
+               (comparar (Some(float act.Abiertos)) None CifraEntera Menos false)
+           tarjeta "Tiempo de ticket abierto" Iconos.Reloj null
+               (comparar act.HorasAbierto (delAnterior _.HorasAbierto) CifraDuracion Menos false)
+           tarjeta "Tiempo de resolución" Iconos.Check "Desde que se creó hasta el cierre"
+               (comparar act.HorasResol (delAnterior _.HorasResol) CifraDuracion Menos false)
+           tarjeta "Tiempo hasta la asignación" Iconos.Persona "Desde que se creó hasta que se asignó"
+               (comparar act.HorasPrimera (delAnterior _.HorasPrimera) CifraDuracion Menos false)
+           tarjeta "Tiempo de asignación a cierre" Iconos.Bandera "Desde que se asignó hasta el cierre"
+               (comparar act.HorasACierre (delAnterior _.HorasACierre) CifraDuracion Menos false) |]
 
     // 5) Gráficas
     let cronologico =

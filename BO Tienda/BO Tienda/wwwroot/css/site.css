@@ -612,6 +612,10 @@ select.elegido { border-color: var(--acento); border-left-width: 3px; }
     gap: 12px;
 }
 .resumen.de-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+/* Siete en dos filas: 4 arriba y 3 abajo, cada fila ocupando todo el ancho */
+.resumen.de-7 { grid-template-columns: repeat(12, minmax(0, 1fr)); }
+.resumen.de-7 > :nth-child(-n+4) { grid-column: span 3; }
+.resumen.de-7 > :nth-child(n+5) { grid-column: span 4; }
 .nota-comparacion { margin-bottom: calc(var(--hueco) * -.5); }
 
 .resumen-dato {
@@ -1098,7 +1102,10 @@ tr.hija td.izq { padding-left: 42px; font-weight: 400; }
     .pestanas-barra { flex-direction: column; align-items: stretch; }
     .pestanas-vista { justify-content: space-between; }
     .resumen,
-    .resumen.de-5 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .resumen.de-5,
+    .resumen.de-7 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .resumen.de-7 > .resumen-dato { grid-column: auto; }
+    .resumen.de-7 > .resumen-dato:last-child { grid-column: 1 / -1; }
     .rejilla-2 { grid-template-columns: minmax(0, 1fr); }
     .hbarra { grid-template-columns: minmax(0, 38%) minmax(0, 1fr) 4.8em; }
 }

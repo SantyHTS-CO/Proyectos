@@ -12,7 +12,7 @@ resultados, con el aspecto de la **guía de estilos SOLARIS · GAIA**
 
 | Pestaña | Ruta | Qué muestra |
 |---|---|---|
-| **Tickets** | `/Informes/Ver/bo-tiendas` | Tickets por agente/team y por día, FIR y tiempos, gráficas |
+| **Tickets** | `/Informes/Ver/bo-tiendas` | Tickets por agente/team y por día, FIR, 7 tarjetas (FIR, fuera de 1ª gestión, abiertos, tiempo abierto y los tiempos de resolución, creación → asignación y asignación → cierre) y gráficas. «Asignado» = `fecha_primer_cambio_estado` (cuando alguien toma el ticket) |
 | **Motivo** | `/Informes/Motivo/bo-tiendas` | Llamadas de la línea del ticket en los 3 días siguientes y su motivo: 5 tarjetas (tickets, tickets que volvieron a llamar, llamadas de esos tickets, % mismo motivo, % diferente motivo), ranking por motivo, agente o team y el tipo de motivo en el tiempo |
 
 Cada pestaña tiene su consulta, su caché y su botón «Actualizar». Al pasar de
